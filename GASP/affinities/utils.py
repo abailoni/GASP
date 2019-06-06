@@ -2,6 +2,7 @@ import numpy as np
 import vigra
 from concurrent import futures
 
+from nifty.graph import rag as nrag
 
 def from_affinities_to_hmap(affinities, offsets, used_offsets=None, offset_weights=None):
     """
@@ -37,6 +38,43 @@ def from_affinities_to_hmap(affinities, offsets, used_offsets=None, offset_weigh
     prob_map = np.stack(rolled_affs).max(axis=0)
 
     return prob_map
+
+
+def probs_to_costs(probs,
+                   beta=.5,
+                   weighting_scheme=None,
+                   rag=None,
+                   segmentation=None,
+                   weight=16.):
+    """
+    :param probs: expected a probability map (0.0 merge or 1.0 split)
+    :param beta: bias factor (with 1.0 everything is repulsive, with 0. everything is attractive)
+    """
+    p_min = 0.001
+    p_max = 1. - p_min
+    # Costs: positive (merge), negative (split)
+    costs = (p_max - p_min) * probs + p_min
+
+    # probabilities to energies, second term is boundary bias
+    costs = np.log((1. - costs) / costs) + np.log((1. - beta) / beta)
+
+    if weighting_scheme is not None:
+        assert rag is not None
+        assert weighting_scheme in ('xyz', 'z', 'all')
+        assert segmentation is not None
+        shape = segmentation.shape
+        fake_data = np.zeros(shape, dtype='float32')
+        edge_sizes = nrag.accumulateEdgeMeanAndLength(rag, fake_data)[:, 1]
+
+        if weighting_scheme == 'all':
+            w = weight * edge_sizes / edge_sizes.max()
+        else:
+            raise NotImplementedError("Weighting scheme not implemented")
+        costs *= w
+
+    return costs
+
+
 
 def size_filter(hmap, seg, threshold):
     segments, counts = np.unique(seg, return_counts=True)

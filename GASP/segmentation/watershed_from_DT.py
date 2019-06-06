@@ -129,22 +129,16 @@ class WatershedOnDistanceTransformFromAffinities(WatershedOnDistanceTransform):
 
 
 
-    def __call__(self, *args):
+    def __call__(self, affinities, *args):
         """
-
-        Parameters
-        ----------
-        args :
-            affinities (1: merge, 0: split)
-            foreground_mask (optional)
-
         Returns
         -------
         Segmentation and (optionally) hmap
         """
-        assert len(args) == 1 or len(args) == 2
-        affinities = args[0]
-        foreground_mask = args[1] if len(args) == 2 else None
+        foreground_mask = None
+        if len(args) != 0:
+            assert len(args) == 1
+            foreground_mask = args[0]
 
         assert affinities.shape[0] == len(self.offsets)
         assert affinities.ndim == 4
