@@ -1,7 +1,7 @@
 import numpy as np
 import vigra
 
-from ...features import from_affinities_to_hmap
+from ..affinities.utils import from_affinities_to_hmap
 
 
 class IntersectWithBoundaryPixels(object):

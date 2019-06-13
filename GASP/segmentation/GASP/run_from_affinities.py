@@ -13,7 +13,7 @@ class GaspFromAffinities(object):
                  offsets,
                  beta_bias=0.5,
                  superpixel_generator=None,
-                 GASP_kwargs=None,
+                 run_GASP_kwargs=None,
                  n_threads=1,
                  verbose=False,
                  invert_affinities=False,
@@ -21,6 +21,7 @@ class GaspFromAffinities(object):
                  use_logarithmic_weights=False,
                  used_offsets=None,
                  offsets_weights=None):
+        # TODO: rename superpixel_gen in something like "graph_preprocessor" (sounds cooler)
         """
         Run the Generalized Algorithm for Signed Graph Agglomerative Partitioning from affinities computed from
         an image. The clustering can be both initialized from pixels and superpixels.
@@ -39,7 +40,7 @@ class GaspFromAffinities(object):
         superpixel_generator : callable (default: None)
             Callable with inputs (affinities, *args_superpixel_gen). If None, run_GASP() is initialized from pixels.
 
-        GASP_kwargs : dict (default: None)
+        run_GASP_kwargs : dict (default: None)
             Additional arguments to be passed to run_GASP()
 
         n_threads :  int (default: 1)
@@ -78,7 +79,8 @@ class GaspFromAffinities(object):
         assert isinstance(verbose, bool)
         self.verbose = verbose
 
-        self.GASP_kwargs = GASP_kwargs
+        run_GASP_kwargs = run_GASP_kwargs if isinstance(run_GASP_kwargs, dict) else {}
+        self.run_GASP_kwargs = run_GASP_kwargs
 
         assert (beta_bias <= 1.0) and (
                     beta_bias >= 0.), "The beta bias parameter is expected to be in the interval (0,1)"
@@ -154,8 +156,7 @@ class GaspFromAffinities(object):
                 image_shape,
                 offsets,
                 offsets_probabilities=offset_probabilities,
-                offsets_weights=offsets_weights,
-                mask_used_edges=self.mask_valid_affinities
+                offsets_weights=offsets_weights
             )
 
         edge_weights = graph.edgeValues(np.rollaxis(affinities, 0, 4))
@@ -173,7 +174,7 @@ class GaspFromAffinities(object):
                                     edge_sizes=edge_sizes,
                                     is_mergeable_edge=is_local_edge,
                                     verbose=self.verbose,
-                                    **self.GASP_kwargs)
+                                    **self.run_GASP_kwargs)
 
         # TODO: map ignore label -1 to 0!
         segmentation = nodeSeg.reshape(image_shape)
@@ -201,7 +202,7 @@ class GaspFromAffinities(object):
                      edge_sizes=edge_sizes,
                      is_mergeable_edge=is_local_edge,
                      verbose=self.verbose,
-                     **self.GASP_kwargs)
+                     **self.run_GASP_kwargs)
 
         # Map node labels back to the original superpixel segmentation:
         final_segm = ntools.mapFeaturesToLabelArray(
