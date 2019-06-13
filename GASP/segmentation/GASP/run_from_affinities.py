@@ -6,7 +6,7 @@ from .core import run_GASP
 from ...affinities.accumulator import AccumulatorLongRangeAffs
 from ...affinities.utils import probs_to_costs
 from ...utils.graph import build_pixel_lifted_graph_from_offsets
-
+from ...utils.various import check_offsets
 
 class GaspFromAffinities(object):
     def __init__(self,
@@ -20,35 +20,71 @@ class GaspFromAffinities(object):
                  offsets_probabilities=None,
                  use_logarithmic_weights=False,
                  used_offsets=None,
-                 offsets_weights=None,
-                 mask_valid_affinities=None):
+                 offsets_weights=None):
         """
-        # TODO: add docstrings
+        Run the Generalized Algorithm for Signed Graph Agglomerative Partitioning from affinities computed from
+        an image. The clustering can be both initialized from pixels and superpixels.
+
         Parameters
         ----------
-        offsets
-        beta_bias
-        superpixel_generator
-        GASP_kwargs
-        n_threads
-        verbose
-        invert_affinities
-        offsets_probabilities
-        used_offsets
-        offsets_weights
-        mask_valid_affinities
+        offsets :  np.array(int) or list
+            Array with shape (nb_offsets, nb_dimensions). Example with three direct neighbors in 3D:
+                [ [-1, 0, 0],
+                  [0, -1, 0],
+                  [0, 0, -1]  ]
+
+        beta_bias : float (default: 0.5)
+            Add bias to the edge weights
+
+        superpixel_generator : callable (default: None)
+            Callable with inputs (affinities, *args_superpixel_gen). If None, run_GASP() is initialized from pixels.
+
+        GASP_kwargs : dict (default: None)
+            Additional arguments to be passed to run_GASP()
+
+        n_threads :  int (default: 1)
+
+        verbose : bool (default: False)
+
+        invert_affinities : bool (default: False)
+
+        offsets_probabilities : np.array(float) or list
+            Array with shape (nb_offsets), specifying the probabilities with which each type of edge-connection
+            should be added to the graph. BY default all connections are added.
+
+        used_offsets : np.array(int) or list
+            Array with shape (nb_offsets), specifying which offsets (i.e. which channels in the affinities array)
+            should be considered to accumulate the average over the initial superpixel-boundaries.
+            By default all offsets are used.
+
+        offsets_weights : np.array(float) or list
+            Array with shape (nb_offsets), specifying how each offset (i.e. a type of edge-connection in
+             the graph) should be weighted in the average-accumulation during the accumulation, related to the input
+             `edge_sizes` of run_GASP(). By default all edges are weighted equally.
         """
-        # TODO: check all this stuff!!
+        offsets = check_offsets(offsets)
         self.offsets = offsets
+
         self.offsets_probabilities = offsets_probabilities
         self.used_offsets = used_offsets
         self.offsets_weights = offsets_weights
+
+        assert isinstance(n_threads, int)
         self.n_threads = n_threads
+
+        assert isinstance(invert_affinities, bool)
         self.invert_affinities = invert_affinities
-        self.GASP_kwargs = GASP_kwargs
-        self.mask_valid_affinities = mask_valid_affinities
+
+        assert isinstance(verbose, bool)
         self.verbose = verbose
+
+        self.GASP_kwargs = GASP_kwargs
+
+        assert (beta_bias <= 1.0) and (
+                    beta_bias >= 0.), "The beta bias parameter is expected to be in the interval (0,1)"
         self.beta_bias = beta_bias
+
+        assert isinstance(use_logarithmic_weights, bool)
         self.use_logarithmic_weights = use_logarithmic_weights
 
         self.superpixel_generator = superpixel_generator
@@ -63,20 +99,26 @@ class GaspFromAffinities(object):
                                                      invert_affinities=False,
                                                      statistic='mean',
                                                      offset_probabilities=self.offsets_probabilities,
-                                                     return_dict=True,
-                                                     mask_used_edges=self.mask_valid_affinities)
+                                                     return_dict=True)
 
     def __call__(self, affinities, *args_superpixel_gen):
         """
         Parameters
         ----------
-        args:
-            affinities(1: merge, 0: split)
-            foreground_mask(optional)
+        affinities : np.array(float)
+            Array with shape (nb_offsets, ) + shape_image, where the shape of the image can be 2D or 3D.
+            Passed values should be in interval [0, 1], where 1-values should represent intra-cluster connections
+            (high affinity, merge) and 0-values inter-cluster connections (low affinity, boundary evidence, split).
+
+        args_superpixel_gen :
+            Additional arguments passed to the superpixel generator
 
         Returns
         -------
-        final_segmentation, runtime
+        final_segmentation : np.array(int)
+            Array with shape shape_image.
+
+        runtime : float
         """
         assert isinstance(affinities, np.ndarray)
         assert affinities.ndim == 4, "Need affinities with 4 channels, got %i" % affinities.ndim

@@ -4,30 +4,26 @@ import numpy as np
 from nifty.graph import rag as nrag
 
 from ..utils.graph import build_lifted_graph_from_rag, get_rag
-
+from ..utils.various import check_offsets
 
 class AccumulatorLongRangeAffs(object):
     def __init__(self, offsets,
-                       offsets_weights=None,
-                       used_offsets=None,
-                       verbose=True,
-                       n_threads=1,
-                   invert_affinities=False,
+                 offsets_weights=None,
+                 used_offsets=None,
+                 verbose=True,
+                 n_threads=1,
+                 invert_affinities=False,
                  statistic='mean',
                  offset_probabilities=None,
                  return_dict=False,
                  mask_used_edges=None):
 
-        if isinstance(offsets, list):
-            offsets = np.array(offsets)
-        else:
-            assert isinstance(offsets, np.ndarray)
+        offsets = check_offsets(offsets)
 
         self.used_offsets = used_offsets
         self.return_dict = return_dict
         self.offsets_weights = offsets_weights
         self.statistic = statistic
-
 
         assert isinstance(n_threads, int)
 
@@ -37,7 +33,6 @@ class AccumulatorLongRangeAffs(object):
         self.invert_affinities = invert_affinities
         self.offset_probabilities = offset_probabilities
         self.mask_used_edges = mask_used_edges
-
 
     def __call__(self, affinities, segmentation):
         tick = time.time()
@@ -63,7 +58,8 @@ class AccumulatorLongRangeAffs(object):
             print("Computing rag...")
             tick = time.time()
 
-        # If there was a label -1, now its value in the rag is given by the maximum label (and it will be ignored later on)
+        # If there was a label -1, now its value in the rag is given by the maximum label
+        # (and it will be ignored later on)
         rag, has_background_label = get_rag(segmentation, self.n_threads)
 
         if self.verbose:
@@ -85,7 +81,6 @@ class AccumulatorLongRangeAffs(object):
             has_background_label=has_background_label,
             mask_used_edges=self.mask_used_edges
         )
-
 
         if self.verbose:
             print("Took {} s!".format(time.time() - tick))
@@ -137,21 +132,21 @@ def accumulate_affinities_on_graph_edges(affinities, offsets, label_image, graph
         if isinstance(offsets_weights, (list, tuple)):
             offsets_weights = np.array(offsets_weights)
         assert offsets_weights.shape[0] == affinities.shape[-1]
-        if all([w>=1.0 for w in offsets_weights]):
+        if all([w >= 1.0 for w in offsets_weights]):
             # Take the inverse:
             offsets_weights = 1. / offsets_weights
         else:
-            assert all([w<=1.0 for w in offsets_weights]) and all([w>=0.0 for w in offsets_weights])
+            assert all([w <= 1.0 for w in offsets_weights]) and all([w >= 0.0 for w in offsets_weights])
     else:
         offsets_weights = np.ones(affinities.shape[-1])
 
-
     accumulated_feat, counts, max_affinities = nrag.accumulateAffinitiesMeanAndLength(graph,
-                                                                      label_image.astype(np.int32),
-                                                                      affinities.astype(np.float32),
-                                                                      offsets.astype(np.int32),
-                                                                      offsets_weights.astype(np.float32),
-                                                                      number_of_threads)
+                                                                                      label_image.astype(np.int32),
+                                                                                      affinities.astype(np.float32),
+                                                                                      offsets.astype(np.int32),
+                                                                                      offsets_weights.astype(
+                                                                                          np.float32),
+                                                                                      number_of_threads)
     if mode == 'mean':
         return accumulated_feat, counts
     elif mode == 'max':
