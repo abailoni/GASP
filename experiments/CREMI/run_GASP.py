@@ -103,7 +103,8 @@ if __name__ == '__main__':
 
     for sample in args.samples:
         _, affinities, _ = load_cremi_dataset(cremi_dataset_folder, sample)
-        run_GASP_on_affinities(affinities,
-                               offsets,
-                               update_rule=args.update_rule,
-                               add_cannot_link_constraints=args.add_cannot_link_constraints)
+        final_segm = run_GASP_on_affinities(affinities,
+                                            offsets,
+                                            update_rule=args.update_rule,
+                                            add_cannot_link_constraints=args.add_cannot_link_constraints)
+        # TODO: write final_segm to file
