@@ -21,7 +21,6 @@ class GaspFromAffinities(object):
                  use_logarithmic_weights=False,
                  used_offsets=None,
                  offsets_weights=None):
-        # TODO: rename superpixel_gen in something like "graph_preprocessor" (sounds cooler)
         """
         Run the Generalized Algorithm for Signed Graph Agglomerative Partitioning from affinities computed from
         an image. The clustering can be both initialized from pixels and superpixels.
@@ -208,7 +207,7 @@ class GaspFromAffinities(object):
         final_segm = ntools.mapFeaturesToLabelArray(
             superpixel_segmentation,
             np.expand_dims(node_labels, axis=-1),
-            number_of_threads=self.n_threads,
+            nb_threads=self.n_threads,
             fill_value=-1.,
             ignore_label=-1,
         )[..., 0].astype(np.int64)
