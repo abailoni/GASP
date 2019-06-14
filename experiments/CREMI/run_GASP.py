@@ -15,7 +15,7 @@ from GASP.segmentation import GaspFromAffinities, WatershedOnDistanceTransformFr
 
 def run_GASP_on_affinities(affinities,
                            offsets,
-                           update_rule="average",
+                           linkage_criteria="average",
                            add_cannot_link_constraints=False):
     # Prepare graph pre-processor or superpixel generator:
     # a WSDT segmentation is intersected with connected components
@@ -33,7 +33,7 @@ def run_GASP_on_affinities(affinities,
                                                                 intersect_with_boundary_pixels=True,
                                                                 boundary_pixels_kwargs=boundary_kwargs,
                                                                 )
-    run_GASP_kwargs = {'linkage_criteria': update_rule,
+    run_GASP_kwargs = {'linkage_criteria': linkage_criteria,
                        'add_cannot_link_constraints': add_cannot_link_constraints}
 
     gasp_instance = GaspFromAffinities(offsets,
@@ -76,7 +76,7 @@ if __name__ == '__main__':
                         help='path to directory downloaded from ....')  # TODO: path!
     parser.add_argument('samples', nargs='+', type=str, default=["A", "B", "C"],
                         help='Which CREMI samples should be processed (A, B or C for training, A+, B+ and C+ for test)')
-    parser.add_argument('--update_rule', type=str, default='average',
+    parser.add_argument('--linkage_criteria', type=str, default='average',
                         help='Update rule used by GASP')
     parser.add_argument('--add_cannot_link_constraints', type=str2bool, default='false',
                         help='Add cannot-link constraints during GASP agglomeration')
@@ -105,6 +105,6 @@ if __name__ == '__main__':
         _, affinities, _ = load_cremi_dataset(cremi_dataset_folder, sample)
         final_segm = run_GASP_on_affinities(affinities,
                                             offsets,
-                                            update_rule=args.update_rule,
+                                            linkage_criteria=args.linkage_criteria,
                                             add_cannot_link_constraints=args.add_cannot_link_constraints)
         # TODO: write final_segm to file

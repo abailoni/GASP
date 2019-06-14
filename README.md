@@ -1,5 +1,5 @@
 # GASP
-Generalized algorithm for agglomerative clustering of signed graphs
+Generalized Algorithm for Signed graph Partitioning
 
 
 ## Installation
@@ -19,16 +19,16 @@ Generalized algorithm for agglomerative clustering of signed graphs
 ## CREMI experiments
 You can download the CREMI data and the affinities predicted by our model at `...`
 
-To run GASP on our affinities, go to the `experiments/CREMI` folder and run the `run_GASP` script:
+To run GASP with our predictions, go to the `experiments/CREMI` folder and run the `run_GASP` script:
 
-    python run_GASP.py /path/to/cremi/dataset/folder --samples A B C --update_rule average --add_cannot_link_constraints false
+    python run_GASP.py /path/to/cremi/dataset/folder --samples A B C --linkage_criteria average --add_cannot_link_constraints false
 
-Samples `A`, `B` and `C` correspond to training data. Samples `A+`, `B+` and `C+` are the test data. See more details below.
+Samples `A`, `B` and `C` correspond to training data. Samples `A+`, `B+` and `C+` correspond to test data. See more details about `linkage_criteria` below.
 ## How to use it
 #### Examples
 In the folder `examples` there are some scripts to run the GASP algorithm directly on a graph or on affinities generated from an image.
 
-#### Running GASP on a graph
+### Running GASP on a graph
 The main function to run GASP on a graph (that can be built using the `nifty` package) is given by `from GASP.segmentation import run_GASP`:
 
 ```python
@@ -107,7 +107,7 @@ with the following parameters:
      After how many agglomeration iteration to print in verbose mode
 
 
-#### Image segmentation with GASP
+### Image segmentation with GASP
 For more details about it, see example `examples/run_GASP_from_affinities.py` and the docstrings of the class `GASP.segmentation.GaspFromAffinities`:
 
 ```python
