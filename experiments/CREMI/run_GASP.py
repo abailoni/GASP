@@ -1,16 +1,9 @@
-import sys
-import os
-
-# TODO: remove
-HCI_HOME = "/home/abailoni_local/hci_home"
-sys.path += [
-    os.path.join(HCI_HOME, "python_libraries/nifty/python")]
-
 import argparse
 import os
 import h5py
 
 from GASP.segmentation import GaspFromAffinities, WatershedOnDistanceTransformFromAffinities
+from GASP.utils.various import parse_data_slice
 
 
 def run_GASP_on_affinities(affinities,
@@ -46,9 +39,19 @@ def run_GASP_on_affinities(affinities,
 
 
 def load_cremi_dataset(cremi_folder_path, sample):
-    # TODO: define train-crops, move this folder to somewhere else...
+    # TODO: move this function somewhere else...
+
     allowed_samples = ["A", "B", "C", "A+", "B+", "C+"]
     assert sample in allowed_samples, "The accepted cremi samples should be chose among {}".format(allowed_samples)
+
+    # For some samples, define some crop-slices to get rid of some ignore-label (id = 0)
+    # that is anyway ignored during inference (reduce runtime):
+    crop_slices = {
+        "B": ":, :, 90:, 580: 1900",
+        "C": ":, :, 70:1450, 95:1425",
+    }
+    crop_slice = parse_data_slice(crop_slices[sample]) if sample in crop_slices else (
+        slice(None), slice(None), slice(None), slice(None),)
 
     is_training_sample = "+" not in sample
     if is_training_sample:
@@ -58,11 +61,11 @@ def load_cremi_dataset(cremi_folder_path, sample):
     assert os.path.exists(cremi_dataset_folder), cremi_dataset_folder
 
     with h5py.File(os.path.join(cremi_folder_path, "affinities", "sample_{}.h5")) as f:
-        affinities = f['data'][:]
+        affinities = f['data'][crop_slice]
     with h5py.File(os.path.join(cremi_folder_path, "data", "sample_{}.h5")) as f:
-        raw = f['raw_data'][:]
+        raw = f['raw_data'][crop_slice[1:]]
         if is_training_sample:
-            gt = f['gt'][:]
+            gt = f['gt'][crop_slice[1:]]
     return raw, affinities, gt
 
 

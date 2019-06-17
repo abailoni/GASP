@@ -4,7 +4,7 @@ Generalized Algorithm for Signed graph Partitioning
 
 ## Installation
 #### On Linux
-- Create conda environment and install `nifty` package with: `conda create -n GASP -c abailoni nifty`
+- Create conda environment and install the `nifty` and `vigra` packages with: `conda create -n GASP -c abailoni -c conda-forge nifty vigra`. The source code for the `nifty` package can be found here: https://github.com/abailoni/nifty
 - Activate the environment: `source activate GASP`
 - Clone this repository: `git clone https://github.com/abailoni/GASP.git`
 - `cd ./GASP`
@@ -17,7 +17,7 @@ Generalized Algorithm for Signed graph Partitioning
 -->
 
 ## CREMI experiments
-You can download the CREMI data and the affinities predicted by our model at `...`
+You will be soon able to download the CREMI data and the affinities predicted by our model.
 
 To run GASP with our predictions, go to the `experiments/CREMI` folder and run the `run_GASP` script:
 

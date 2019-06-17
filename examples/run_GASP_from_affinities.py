@@ -1,10 +1,3 @@
-import sys
-import os
-
-HCI_HOME = "/home/abailoni_local/hci_home"
-sys.path += [
-    os.path.join(HCI_HOME, "python_libraries/nifty/python")]
-
 import numpy as np
 
 from GASP.segmentation import GaspFromAffinities, WatershedOnDistanceTransformFromAffinities

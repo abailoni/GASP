@@ -1,12 +1,3 @@
-import sys
-import os
-
-HCI_HOME = "/home/abailoni_local/hci_home"
-sys.path += [
-    os.path.join(HCI_HOME, "python_libraries/nifty/python"),
-    os.path.join(HCI_HOME, "pyCharm_projects/segmfriends"),
-]
-
 import numpy as np
 
 from nifty.graph import UndirectedGraph
