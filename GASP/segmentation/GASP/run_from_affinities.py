@@ -134,7 +134,7 @@ class GaspFromAffinities(object):
         else:
             return self.run_GASP_from_pixels(affinities_)
 
-    def run_GASP_from_pixels(self, affinities):
+    def run_GASP_from_pixels(self, affinities, mask_used_edges=None):
         offsets = self.offsets
         offset_probabilities = self.offsets_probabilities
         offsets_weights = self.offsets_weights
@@ -155,7 +155,8 @@ class GaspFromAffinities(object):
                 image_shape,
                 offsets,
                 offsets_probabilities=offset_probabilities,
-                offsets_weights=offsets_weights
+                offsets_weights=offsets_weights,
+                mask_used_edges=mask_used_edges
             )
 
         edge_weights = graph.edgeValues(np.rollaxis(affinities, 0, 4))
