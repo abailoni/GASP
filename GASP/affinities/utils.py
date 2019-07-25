@@ -19,7 +19,7 @@ def from_affinities_to_hmap(affinities, offsets, used_offsets=None, offset_weigh
     if used_offsets is None:
         used_offsets = range(offsets.shape[0])
     if offset_weights is None:
-        offset_weights = [1.0 for _ in range(offsets.shape[0])]
+        offset_weights = [1.0 for _ in range(len(used_offsets))]
     assert len(used_offsets)==len(offset_weights)
     rolled_affs = []
     for i, offs_idx in enumerate(used_offsets):

@@ -84,7 +84,11 @@ def run_GASP(
 
     if use_efficient_implementations and (linkage_criteria in ['mutex_watershed', 'abs_max'] or
                                           (linkage_criteria == 'max' and not add_cannot_link_constraints)):
-        assert is_mergeable_edge is None, "Efficient implementations only works when all edges are mergeable"
+        if is_mergeable_edge is not None:
+            if not is_mergeable_edge.all():
+                print("WARNING: Efficient implementations only works when all edges are mergeable")
+            # assert is_mergeable_edge.all(), "Efficient implementations only works when all edges are mergeable"
+        # assert is_mergeable_edge is None, "Efficient implementations only works when all edges are mergeable"
         nb_nodes = graph.numberOfNodes
         uv_ids = graph.uvIds()
         mutex_edges = signed_edge_weights < 0.
