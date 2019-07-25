@@ -8,8 +8,8 @@ from nifty.graph import rag as nrag
 def get_rag(segmentation, nb_threads):
     # Check if the segmentation has a background label that should be ignored in the graph:
     min_label = segmentation.min()
-    if min_label >=0:
-        return  nrag.gridRag(segmentation.astype(np.uint32), numberOfThreads=nb_threads), False
+    if min_label >= 0:
+        return nrag.gridRag(segmentation.astype(np.uint32), numberOfThreads=nb_threads), False
     else:
         assert min_label == -1, "The only accepted background label is -1"
         max_valid_label = segmentation.max()
@@ -28,7 +28,6 @@ def build_lifted_graph_from_rag(rag,
                                 number_of_threads=8,
                                 has_background_label=False,
                                 mask_used_edges=None):
-
     if isinstance(offset_probabilities, np.ndarray):
         only_local = all(offset_probabilities == 0.)
     else:
@@ -41,7 +40,7 @@ def build_lifted_graph_from_rag(rag,
         # Find edges not connected to the background:
         edges = rag.uvIds()
         background_label = rag.numberOfNodes - 1
-        valid_edges = edges[np.logical_and(edges[:,0] != background_label, edges[:,1] != background_label)]
+        valid_edges = edges[np.logical_and(edges[:, 0] != background_label, edges[:, 1] != background_label)]
 
         # Construct new graph without the background:
         new_graph = nifty.graph.undirectedGraph(rag.numberOfNodes - 1)
@@ -62,14 +61,16 @@ def build_lifted_graph_from_rag(rag,
         used_offsets = offsets
         possibly_lifted_edges = ngraph.compute_lifted_edges_from_rag_and_offsets(rag,
                                                                                  label_image,
-                                                  used_offsets,
-                                                  offsets_probabilities=offset_probabilities,
-                                                  number_of_threads=number_of_threads,
+                                                                                 used_offsets,
+                                                                                 offsets_probabilities=offset_probabilities,
+                                                                                 number_of_threads=number_of_threads,
                                                                                  mask_used_edges=mask_used_edges)
 
         # Delete lifted edges connected to the background label:
         if has_background_label:
-            possibly_lifted_edges = possibly_lifted_edges[np.logical_and(possibly_lifted_edges[:,0] != background_label, possibly_lifted_edges[:,1] != background_label)]
+            possibly_lifted_edges = possibly_lifted_edges[
+                np.logical_and(possibly_lifted_edges[:, 0] != background_label,
+                               possibly_lifted_edges[:, 1] != background_label)]
 
         final_graph.insertEdges(possibly_lifted_edges)
         total_nb_edges = final_graph.numberOfEdges
@@ -78,7 +79,6 @@ def build_lifted_graph_from_rag(rag,
         is_local_edge[:nb_local_edges] = 1
 
         return final_graph, is_local_edge
-
 
 
 def build_pixel_lifted_graph_from_offsets(image_shape,
@@ -103,14 +103,13 @@ def build_pixel_lifted_graph_from_offsets(image_shape,
         if offsets_weights is not None:
             print("Offset weights ignored...!")
 
-
     graph = ngraph.undirectedLongRangeGridGraph(image_shape, offsets, is_local_offset,
-                        offsets_probabilities=offsets_probabilities,
-                        labels=label_image,
-                                         strides=strides,
+                                                offsets_probabilities=offsets_probabilities,
+                                                labels=label_image,
+                                                strides=strides,
                                                 mask_used_edges=mask_used_edges)
     nb_nodes = graph.numberOfNodes
-
+    print(graph.numberOfEdges)
 
     if label_image is None:
         offset_index = graph.edgeOffsetIndex()
@@ -124,18 +123,18 @@ def build_pixel_lifted_graph_from_offsets(image_shape,
     if offsets_weights is None or label_image is not None:
         edge_sizes = np.ones(graph.numberOfEdges, dtype='int32')
     else:
-        if isinstance(offsets_weights,(list,tuple)):
+        if isinstance(offsets_weights, (list, tuple)):
             offsets_weights = np.array(offsets_weights)
         assert offsets_weights.shape[0] == offsets.shape[0]
 
         if offsets_weights.ndim == len(image_shape) + 1:
             edge_sizes = graph.edgeValues(np.rollaxis(offsets_weights, 0, 4))
         else:
-            if all([w>=1.0 for w in offsets_weights]):
+            if all([w >= 1.0 for w in offsets_weights]):
                 # Take the inverse:
                 offsets_weights = 1. / offsets_weights
             else:
-                assert all([w<=1.0 for w in offsets_weights]) and all([w>=0.0 for w in offsets_weights])
+                assert all([w <= 1.0 for w in offsets_weights]) and all([w >= 0.0 for w in offsets_weights])
 
             edge_sizes = offsets_weights[offset_index.astype('int32')]
 

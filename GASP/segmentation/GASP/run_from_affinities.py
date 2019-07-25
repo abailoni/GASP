@@ -8,6 +8,7 @@ from ...affinities.utils import probs_to_costs
 from ...utils.graph import build_pixel_lifted_graph_from_offsets
 from ...utils.various import check_offsets
 
+
 class GaspFromAffinities(object):
     def __init__(self,
                  offsets,
@@ -82,27 +83,16 @@ class GaspFromAffinities(object):
         self.run_GASP_kwargs = run_GASP_kwargs
 
         assert (beta_bias <= 1.0) and (
-                    beta_bias >= 0.), "The beta bias parameter is expected to be in the interval (0,1)"
+                beta_bias >= 0.), "The beta bias parameter is expected to be in the interval (0,1)"
         self.beta_bias = beta_bias
 
         assert isinstance(use_logarithmic_weights, bool)
         self.use_logarithmic_weights = use_logarithmic_weights
 
         self.superpixel_generator = superpixel_generator
-        if superpixel_generator is not None:
-            if hasattr(superpixel_generator, "invert_affinities"):
-                self.superpixel_generator.invert_affinities = False
-            self.featurer = AccumulatorLongRangeAffs(self.offsets,
-                                                     offsets_weights=self.offsets_weights,
-                                                     used_offsets=self.used_offsets,
-                                                     verbose=self.verbose,
-                                                     n_threads=self.n_threads,
-                                                     invert_affinities=False,
-                                                     statistic='mean',
-                                                     offset_probabilities=self.offsets_probabilities,
-                                                     return_dict=True)
 
-    def __call__(self, affinities, *args_superpixel_gen):
+    def __call__(self, affinities, *args_superpixel_gen,
+                 mask_used_edges=None):
         """
         Parameters
         ----------
@@ -130,9 +120,10 @@ class GaspFromAffinities(object):
 
         if self.superpixel_generator is not None:
             superpixel_segmentation = self.superpixel_generator(affinities_, *args_superpixel_gen)
-            return self.run_GASP_from_superpixels(affinities_, superpixel_segmentation)
+            return self.run_GASP_from_superpixels(affinities_, superpixel_segmentation,
+                                                  mask_used_edges=mask_used_edges)
         else:
-            return self.run_GASP_from_pixels(affinities_)
+            return self.run_GASP_from_pixels(affinities_, mask_used_edges=mask_used_edges)
 
     def run_GASP_from_pixels(self, affinities, mask_used_edges=None):
         offsets = self.offsets
@@ -181,9 +172,21 @@ class GaspFromAffinities(object):
 
         return segmentation, runtime
 
-    def run_GASP_from_superpixels(self, affinities, superpixel_segmentation):
+    def run_GASP_from_superpixels(self, affinities, superpixel_segmentation,
+                                  mask_used_edges=None):
+        featurer = AccumulatorLongRangeAffs(self.offsets,
+                                            offsets_weights=self.offsets_weights,
+                                            used_offsets=self.used_offsets,
+                                            verbose=self.verbose,
+                                            n_threads=self.n_threads,
+                                            invert_affinities=False,
+                                            statistic='mean',
+                                            offset_probabilities=self.offsets_probabilities,
+                                            mask_used_edges=mask_used_edges,
+                                            return_dict=True)
+
         # Compute graph and edge weights by accumulating over the affinities:
-        featurer_outputs = self.featurer(affinities, superpixel_segmentation)
+        featurer_outputs = featurer(affinities, superpixel_segmentation)
         graph = featurer_outputs['graph']
         edge_indicators = featurer_outputs['edge_indicators']
         edge_sizes = featurer_outputs['edge_sizes']
