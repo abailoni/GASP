@@ -11,6 +11,7 @@ def get_rag(segmentation, nb_threads):
     if min_label >= 0:
         return nrag.gridRag(segmentation.astype(np.uint32), numberOfThreads=nb_threads), False
     else:
+        # print("RAG built with background label 0!")
         assert min_label == -1, "The only accepted background label is -1"
         max_valid_label = segmentation.max()
         assert max_valid_label >= 0, "A label image with only background label was passed!"
@@ -109,7 +110,6 @@ def build_pixel_lifted_graph_from_offsets(image_shape,
                                                 strides=strides,
                                                 mask_used_edges=mask_used_edges)
     nb_nodes = graph.numberOfNodes
-    print(graph.numberOfEdges)
 
     if label_image is None:
         offset_index = graph.edgeOffsetIndex()
