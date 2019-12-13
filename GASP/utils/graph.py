@@ -3,6 +3,7 @@ import nifty
 import numpy as np
 from nifty import graph as ngraph
 from nifty.graph import rag as nrag
+import warnings
 
 
 def get_rag(segmentation, nb_threads):
@@ -11,7 +12,6 @@ def get_rag(segmentation, nb_threads):
     if min_label >= 0:
         return nrag.gridRag(segmentation.astype(np.uint32), numberOfThreads=nb_threads), False
     else:
-        # print("RAG built with background label 0!")
         assert min_label == -1, "The only accepted background label is -1"
         max_valid_label = segmentation.max()
         assert max_valid_label >= 0, "A label image with only background label was passed!"
@@ -115,6 +115,8 @@ def build_pixel_lifted_graph_from_offsets(image_shape,
         offset_index = graph.edgeOffsetIndex()
         is_local_edge = np.empty_like(offset_index, dtype='bool')
         w = np.where(offset_index < nb_local_offsets)
+        warnings.warn("First {} offsets are assumed to be direct neighbors and the remaining ones long-range".format(
+            nb_local_offsets))
         is_local_edge[:] = 0
         is_local_edge[w] = 1
     else:
