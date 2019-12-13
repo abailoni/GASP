@@ -112,13 +112,14 @@ class SizeThreshAndGrowWithWS(object):
         label_image = label_image.astype(np.uint32)
 
         def get_size_map(label_image):
-            rag = nrag.gridRag(label_image)
-            _, node_features = nrag.accumulateMeanAndLength(rag, label_image.astype('float32'),
-                                                            blockShape=[1, 100, 100],
-                                                            numberOfThreads=8,
-                                                            saveMemory=True)
-            nodeSizes = node_features[:, [1]]
-            return ntools.mapFeaturesToLabelArray(label_image, nodeSizes, number_of_threads=6).squeeze()
+            node_sizes = np.bincount(label_image.flatten())
+            # rag = nrag.gridRag(label_image)
+            # _, node_features = nrag.accumulateMeanAndLength(rag, label_image.astype('float32'),
+            #                                                 blockShape=[1, 100, 100],
+            #                                                 numberOfThreads=8,
+            #                                                 saveMemory=True)
+            # nodeSizes = node_features[:, [1]]
+            return ntools.mapFeaturesToLabelArray(label_image, node_sizes[:,None], nb_threads=6).squeeze()
 
 
 
