@@ -11,5 +11,5 @@ setup(
     url='https://github.com/abailoni/GASP',
     # long_description='',
     author_email='alberto.bailoni@iwr.uni-heidelberg.de',
-    install_requires=['numpy'],
+    # install_requires=['numpy'],
 )
