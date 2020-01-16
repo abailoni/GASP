@@ -42,8 +42,11 @@ class AccumulatorLongRangeAffs(object):
             assert len(self.used_offsets) < self.offsets.shape[0]
             offsets = self.offsets[self.used_offsets]
             affinities = affinities[self.used_offsets]
+            # FIXME: problem is weights are None (and how should I define them? On the full offsets or just the used ones?)
             if isinstance(offsets_weights, (list, tuple)):
                 offsets_weights = np.array(offsets_weights)
+            # elif offsets_weights is None:
+            #     offsets_weights = np.ones(off)
             offsets_weights = offsets_weights[self.used_offsets]
 
         assert affinities.ndim == 4

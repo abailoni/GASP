@@ -1,0 +1,8 @@
+---
+exclude_paths:
+  - 'GASP/_version.py'
+  - 'tests/**/*'
+  - 'tests/*'
+  - 'benchmarks/**/*'
+  - 'setup.py'
+  - 'versioneer.py'

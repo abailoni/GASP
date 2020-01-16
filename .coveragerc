@@ -1,0 +1,7 @@
+[report]
+omit =
+    setup.py
+    GASP/__main__.py
+    GASP/_version.py
+    versioneer.py
+    tests/*
