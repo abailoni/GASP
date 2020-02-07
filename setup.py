@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-exec(open('gasp/__version__.py').read())
+exec(open('GASP/__version__.py').read())
 
 setup(
     name='GASP',
