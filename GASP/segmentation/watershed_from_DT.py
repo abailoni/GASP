@@ -51,7 +51,10 @@ class WatershedOnDistanceTransform(object):
         # we are not using the dt after this point, so it's ok to smooth it
         # and later use it for calculating the seeds
         if self.sigma_seeds > 0.:
-            distance_transform = vigra.filters.gaussianSmoothing(distance_transform, self.sigma_seeds)
+            max_sigma = (np.array(distance_transform.shape) - 1) / 3
+            sigma_seeds = np.minimum(max_sigma, np.ones(max_sigma.ndim) * self.sigma_seeds)
+
+            distance_transform = vigra.filters.gaussianSmoothing(distance_transform, sigma_seeds)
         # If any seeds end up on the membranes, we'll remove them.
         # This is more likely to happen when the distance transform was generated with preserve_membrane_pmaps=True
         membrane_mask = (distance_transform < 0)
