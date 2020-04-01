@@ -17,13 +17,13 @@ Generalized Algorithm for Signed graph Partitioning
 -->
 
 ## CREMI experiments
-You will be soon able to download the CREMI data and the affinities predicted by our model.
+<!-- You will be soon able to download the CREMI data and the affinities predicted by our model. -->
 
-To run GASP with our predictions, go to the `experiments/CREMI` folder and run the `run_GASP` script:
+To run GASP, go to the `experiments/CREMI` folder and run the `run_GASP` script:
 
     python run_GASP.py /path/to/cremi/dataset/folder --samples A B C --linkage_criteria average --add_cannot_link_constraints false
 
-Samples `A`, `B` and `C` correspond to training data. Samples `A+`, `B+` and `C+` correspond to test data. See more details about `linkage_criteria` below.
+<!-- Samples `A`, `B` and `C` correspond to training data. Samples `A+`, `B+` and `C+` correspond to test data. See more details about `linkage_criteria` below. -->
 ## Description of the package and how to use it
 #### Examples
 In the folder `examples` there are some scripts to run the GASP algorithm directly on a graph or on affinities generated from an image.
