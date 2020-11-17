@@ -1,0 +1,44 @@
+os: linux
+language: python
+python:
+  - "3.7"
+
+before_install:
+  # install conda
+  - sudo apt-get update
+  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - source "$HOME/miniconda/etc/profile.d/conda.sh"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda config --set anaconda_upload no
+  - conda update -q conda
+  # Useful for debugging any issues with conda
+  - conda info -a
+
+install:
+  # install conda-build
+  - conda install -q conda-build
+  # build conda recipe
+  - conda build -c conda-forge -c abailoni --python=$TRAVIS_PYTHON_VERSION conda-recipe
+
+#before_script:
+#  # create test env
+#  - conda create -n GASP -c conda-forge --use-local python=$TRAVIS_PYTHON_VERSION GASP
+#  - conda activate GASP
+#  # install test dependencies
+#  - conda install pytest
+#
+#script:
+#  - pytest -v
+
+#before_deploy:
+#  # install anaconda-client
+#  - conda install -q anaconda-client
+#
+#deploy:
+#  - provider: script
+#    script: anaconda -t $CONDA_UPLOAD_TOKEN upload $HOME/miniconda/conda-bld/**/GASP-*.tar.bz2
+#    on:
+#      tags: true
+#    skip_cleanup: true
