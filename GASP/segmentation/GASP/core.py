@@ -1,7 +1,7 @@
 import numpy as np
 import time
 
-from nifty.segmentation import compute_mws_clustering, compute_single_linkage_clustering
+from affogato.segmentation import compute_mws_clustering, compute_single_linkage_clustering
 import nifty.graph.agglo as nifty_agglo
 
 def run_GASP(

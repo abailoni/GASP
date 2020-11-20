@@ -5,7 +5,7 @@ from nifty import tools as ntools
 from .core import run_GASP
 from ...affinities.accumulator import AccumulatorLongRangeAffs
 from ...affinities.utils import probs_to_costs
-from ...utils.graph import build_pixel_lifted_graph_from_offsets
+from ...utils.graph import build_pixel_long_range_grid_graph_from_offsets
 from ...utils.various import check_offsets
 
 
@@ -60,15 +60,28 @@ class GaspFromAffinities(object):
 
         offsets_weights : np.array(float) or list
             Array with shape (nb_offsets), specifying how each offset (i.e. a type of edge-connection in
-             the graph) should be weighted in the average-accumulation during the accumulation, related to the input
-             `edge_sizes` of run_GASP(). By default all edges are weighted equally.
+             the graph) should be weighted in the average-accumulation during the accumulation,
+             related to the input `edge_sizes` of run_GASP(). By default all edges are weighted equally.
         """
         offsets = check_offsets(offsets)
         self.offsets = offsets
 
+        # Parse inputs:
+        if used_offsets is not None:
+            assert len(used_offsets) < offsets.shape[0]
+            if offsets_probabilities is not None:
+                offsets_probabilities = np.require(offsets_probabilities, dtype='float32')
+                assert len(offsets_probabilities) == len(offsets)
+                offsets_probabilities = offsets_probabilities[used_offsets]
+            if offsets_weights is not None:
+                offsets_weights = np.require(offsets_weights, dtype='float32')
+                assert len(offsets_weights) == len(offsets)
+                offsets_weights = offsets_weights[used_offsets]
+
         self.offsets_probabilities = offsets_probabilities
         self.used_offsets = used_offsets
         self.offsets_weights = offsets_weights
+
 
         assert isinstance(n_threads, int)
         self.n_threads = n_threads
@@ -126,28 +139,23 @@ class GaspFromAffinities(object):
             return self.run_GASP_from_pixels(affinities_, mask_used_edges=mask_used_edges)
 
     def run_GASP_from_pixels(self, affinities, mask_used_edges=None):
+        assert affinities.shape[0] == len(self.offsets)
         offsets = self.offsets
-        offset_probabilities = self.offsets_probabilities
-        offsets_weights = self.offsets_weights
         if self.used_offsets is not None:
-            assert len(self.used_offsets) < self.offsets.shape[0]
-            offsets = self.offsets[self.used_offsets]
             affinities = affinities[self.used_offsets]
-            offset_probabilities = self.offsets_probabilities[self.used_offsets]
-            if isinstance(offsets_weights, (list, tuple)):
-                offsets_weights = np.array(offsets_weights)
-            offsets_weights = offsets_weights[self.used_offsets]
+            offsets = offsets[self.used_offsets]
 
         image_shape = affinities.shape[1:]
 
         # Build graph:
-        graph, is_local_edge, _, edge_sizes = \
-            build_pixel_lifted_graph_from_offsets(
+        graph, is_local_edge, edge_sizes = \
+            build_pixel_long_range_grid_graph_from_offsets(
                 image_shape,
                 offsets,
-                offsets_probabilities=offset_probabilities,
-                offsets_weights=offsets_weights,
-                mask_used_edges=mask_used_edges
+                offsets_probabilities=self.offsets_probabilities,
+                mask_used_edges=mask_used_edges,
+                offset_weights=self.offsets_weights,
+                set_only_direct_neigh_as_mergeable=True
             )
 
         edge_weights = graph.edgeValues(np.rollaxis(affinities, 0, 4))
@@ -174,6 +182,7 @@ class GaspFromAffinities(object):
 
     def run_GASP_from_superpixels(self, affinities, superpixel_segmentation,
                                   mask_used_edges=None):
+        assert mask_used_edges is None, "Edge mask cannot be used when starting from a segmentation"
         featurer = AccumulatorLongRangeAffs(self.offsets,
                                             offsets_weights=self.offsets_weights,
                                             used_offsets=self.used_offsets,
@@ -182,7 +191,6 @@ class GaspFromAffinities(object):
                                             invert_affinities=False,
                                             statistic='mean',
                                             offset_probabilities=self.offsets_probabilities,
-                                            mask_used_edges=mask_used_edges,
                                             return_dict=True)
 
         # Compute graph and edge weights by accumulating over the affinities:

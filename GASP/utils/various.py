@@ -2,12 +2,23 @@ import numpy as np
 
 
 def check_offsets(offsets):
-    if isinstance(offsets, list):
+    if isinstance(offsets, (list, tuple)):
         offsets = np.array(offsets)
     else:
         assert isinstance(offsets, np.ndarray)
     assert offsets.ndim == 2
     return offsets
+
+
+def find_indices_direct_neighbors_in_offsets(offsets):
+    offsets = check_offsets(offsets)
+    indices_dir_neighbor = []
+    is_dir_neighbor = np.empty(offsets.shape[0], dtype='bool')
+    for i, off in enumerate(offsets):
+        is_dir_neighbor[i] = (np.abs(off).sum() == 1)
+        if np.abs(off).sum() == 1:
+            indices_dir_neighbor.append(i)
+    return is_dir_neighbor, indices_dir_neighbor
 
 
 def parse_data_slice(data_slice):
