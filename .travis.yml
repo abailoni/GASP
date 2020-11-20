@@ -3,6 +3,11 @@ language: python
 python:
   - "3.7"
 
+
+branches:
+  only:
+  - master
+
 before_install:
   # install conda
   - sudo apt-get update
@@ -20,17 +25,17 @@ install:
   # install conda-build
   - conda install -q conda-build
   # build conda recipe
-  - conda build -c conda-forge -c abailoni --python=$TRAVIS_PYTHON_VERSION conda-recipe
+  - conda build -c conda-forge -c abailoni -c cpape --python=$TRAVIS_PYTHON_VERSION conda-recipe
 
-#before_script:
-#  # create test env
-#  - conda create -n GASP -c conda-forge --use-local python=$TRAVIS_PYTHON_VERSION GASP
-#  - conda activate GASP
-#  # install test dependencies
-#  - conda install pytest
-#
-#script:
-#  - pytest -v
+before_script:
+  # create test env
+  - conda create -n GASP -c conda-forge --use-local python=$TRAVIS_PYTHON_VERSION GASP
+  - conda activate GASP
+  # install test dependencies
+  - conda install pytest
+
+script:
+  - pytest -v
 
 #before_deploy:
 #  # install anaconda-client
