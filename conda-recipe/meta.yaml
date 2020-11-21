@@ -15,16 +15,16 @@ requirements:
     - pip
 
   run:
-    - python 3.7
+    - python
     - nifty
     - vigra
     - affogato
 
-#test:
-#  requires:
-#    - pytest
-#  run:
-#    - pytest tests/
+test:
+  requires:
+    - pytest
+  run:
+    - pytest tests/
 
 about:
   home: https://github.com/abailoni/GASP
