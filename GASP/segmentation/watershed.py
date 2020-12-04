@@ -48,16 +48,23 @@ class WatershedFromAffinities(object):
     def ws_superpixels(self, hmap_z_slice):
         assert hmap_z_slice.ndim ==  2 or hmap_z_slice.ndim == 3
 
-        hmap_z_slice = median_filter(hmap_z_slice, 4)
+        # hmap_z_slice = median_filter(hmap_z_slice, 1)
 
         segmentation, max_label = watershedsNew(hmap_z_slice)
         return segmentation, max_label
 
-    def __call__(self, affinities):
+    def __call__(self, affinities, *args):
         """
         Here we expect real affinities (1: merge, 0: split).
         If the opposite is passed, set option `invert_affinities == True`
         """
+        foreground_mask = None
+        # TODO: update with only one optional arg...
+        if len(args) != 0:
+            assert len(args) == 1
+            foreground_mask = args[0]
+
+
         assert affinities.shape[0] == len(self.offsets)
         assert affinities.ndim == 4
 
@@ -71,6 +78,12 @@ class WatershedFromAffinities(object):
             segmentation, _ = superpixel_stacked(hmap, self.ws_superpixels, self.n_threads)
         else:
             segmentation, _ = self.ws_superpixels(hmap)
+
+        # Mask with background (e.g. ignore GT-label):
+        if foreground_mask is not None:
+            assert foreground_mask.shape == segmentation.shape
+            segmentation = segmentation.astype('int64')
+            segmentation = np.where(foreground_mask, segmentation, np.ones_like(segmentation) * (-1))
 
         if self.return_hmap:
             return segmentation, hmap
