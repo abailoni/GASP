@@ -228,3 +228,16 @@ class GaspFromAffinities(object):
         final_segm += 1
 
         return final_segm, runtime
+
+
+class SegmentationFeeder(object):
+    """
+    A simple function that expects affinities and initial segmentation (with optional foreground mask)
+    and can be used as "superpixel_generator" for GASP
+    """
+    def __call__(self, affinities, segmentation, foreground_mask=None):
+        if foreground_mask is not None:
+            assert foreground_mask.shape == segmentation.shape
+            segmentation = segmentation.astype('int64')
+            segmentation = np.where(foreground_mask, segmentation, np.ones_like(segmentation) * (-1))
+        return segmentation

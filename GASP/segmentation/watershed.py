@@ -158,3 +158,42 @@ class SizeThreshAndGrowWithWS(object):
                 return vigra.analysis.labelVolumeWithBackground(watershedResult.astype(np.uint32))
             else:
                 return vigra.analysis.labelVolume(watershedResult.astype(np.uint32))
+
+
+
+class SeededWatershedOnAffinities(object):
+    """
+    Grow segments in given segmentation to fill the background in the image
+    (wrapper of vigra seeded watershed).
+
+    Segments are grown on every slice in 2D. Background label is assumed to be zero.
+    """
+    def __init__(self,
+                 offsets,
+                 hmap_kwargs=None,
+                 debug=False):
+        self.offsets = offsets
+        assert len(offsets[0]) ==  3, "Only 3D supported atm"
+        self.hmap_kwargs = {} if hmap_kwargs is None else hmap_kwargs
+        self.debug = debug
+
+    def __call__(self, affinities, label_image):
+        assert len(self.offsets) == affinities.shape[0], "Affinities does not match offsets"
+
+        assert label_image.min() >= 0, "Negative labels passed"
+
+        label_image = label_image.astype(np.uint32)
+
+        foreground_mask = label_image != 0
+        seeds = label_image
+
+        if self.debug:
+            print("Computing hmap and WS...")
+
+        hmap = from_affinities_to_hmap(affinities, self.offsets, **self.hmap_kwargs)
+        watershedResult = np.empty_like(seeds)
+        for z in range(hmap.shape[0]):
+            watershedResult[z], _ = vigra.analysis.watershedsNew(hmap[z], seeds=seeds[z],
+                                                                 method='RegionGrowing')
+
+        return vigra.analysis.labelVolume(watershedResult.astype(np.uint32))
