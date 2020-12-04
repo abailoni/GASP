@@ -11,7 +11,8 @@ def get_rag(segmentation, nb_threads):
     # Check if the segmentation has a background label that should be ignored in the graph:
     min_label = segmentation.min()
     if min_label >= 0:
-        return nrag.gridRag(segmentation.astype(np.uint32), numberOfThreads=nb_threads), False
+        out_dict = {'has_background_label': False}
+        return nrag.gridRag(segmentation.astype(np.uint32), numberOfThreads=nb_threads), out_dict
     else:
         assert min_label == -1, "The only accepted background label is -1"
         max_valid_label = segmentation.max()
@@ -21,7 +22,10 @@ def get_rag(segmentation, nb_threads):
         mod_segmentation[background_mask] = max_valid_label + 1
 
         # Build rag including background:
-        return nrag.gridRag(mod_segmentation.astype(np.uint32), numberOfThreads=nb_threads), True
+        out_dict = {'has_background_label': True,
+                    'updated_segmentation': mod_segmentation,
+                    'background_label': max_valid_label + 1}
+        return nrag.gridRag(mod_segmentation.astype(np.uint32), numberOfThreads=nb_threads), out_dict
 
 
 def build_lifted_graph_from_rag(rag,

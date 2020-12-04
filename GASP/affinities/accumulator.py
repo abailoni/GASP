@@ -76,7 +76,8 @@ class AccumulatorLongRangeAffs(object):
 
         # If there was a label -1, now its value in the rag is given by the maximum label
         # (and it will be ignored later on)
-        rag, has_background_label = get_rag(segmentation, self.n_threads)
+        rag, extra_dict = get_rag(segmentation, self.n_threads)
+        has_background_label = extra_dict['has_background_label']
 
         if self.verbose:
             print("Took {} s!".format(time.time() - tick))
@@ -123,10 +124,11 @@ class AccumulatorLongRangeAffs(object):
         edge_indicators, edge_sizes = nrag.accumulate_affinities_mean_and_length(
             affinities,
             offsets,
-            segmentation,
+            segmentation if not has_background_label else extra_dict['updated_segmentation'],
             graph=lifted_graph,
             offset_weights=offsets_weights,
-            ignore_label=None, number_of_threads=self.n_threads
+            ignore_label=None if not has_background_label else extra_dict['background_label'],
+            number_of_threads=self.n_threads
         )
 
         out_dict['graph'] = lifted_graph
