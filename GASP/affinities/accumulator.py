@@ -48,7 +48,7 @@ class AccumulatorLongRangeAffs(object):
         self.invert_affinities = invert_affinities
         self.offset_probabilities = offset_probabilities
 
-    def __call__(self, affinities, segmentation):
+    def __call__(self, affinities, segmentation, affinities_weights=None):
         tick = time.time()
 
         # Use only few channels from the affinities, if we are not using all offsets:
@@ -58,13 +58,14 @@ class AccumulatorLongRangeAffs(object):
             assert len(self.used_offsets) < self.offsets.shape[0]
             offsets = self.offsets[self.used_offsets]
             affinities = affinities[self.used_offsets]
-            if isinstance(offsets_weights, (list, tuple)):
-                offsets_weights = np.array(offsets_weights)
-            offsets_weights = offsets_weights[self.used_offsets]
+            if affinities_weights is not None:
+                affinities_weights = affinities_weights[self.used_offsets]
 
         assert affinities.ndim == 4
-        # affinities = affinities[:3]
         assert affinities.shape[0] == offsets.shape[0]
+        if affinities_weights is not None:
+            assert affinities_weights.shape == affinities.shape
+            assert offsets_weights is None, "Affinity and offset weights are not supported at the same time"
 
         if self.invert_affinities:
             affinities = 1. - affinities
@@ -127,6 +128,7 @@ class AccumulatorLongRangeAffs(object):
             segmentation if not has_background_label else extra_dict['updated_segmentation'],
             graph=lifted_graph,
             offset_weights=offsets_weights,
+            affinities_weights=affinities_weights,
             ignore_label=None if not has_background_label else extra_dict['background_label'],
             number_of_threads=self.n_threads
         )

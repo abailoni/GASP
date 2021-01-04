@@ -1,7 +1,11 @@
 import numpy as np
 import time
 
-from affogato.segmentation import compute_mws_clustering, compute_single_linkage_clustering
+try:
+    from affogato import segmentation as aff_segm
+except ImportError:
+    aff_segm = None
+
 import nifty.graph.agglo as nifty_agglo
 
 def run_GASP(
@@ -95,14 +99,15 @@ def run_GASP(
 
         tick = time.time()
         # These implementations use the convention where all edge weights are positive
+        assert aff_segm is not None, "For the efficient implementation of GASP, affogato module is needed"
         if linkage_criteria in ['mutex_watershed', 'abs_max']:
-            node_labels = compute_mws_clustering(nb_nodes,
+            node_labels = aff_segm.compute_mws_clustering(nb_nodes,
                                              uv_ids[np.logical_not(mutex_edges)],
                                              uv_ids[mutex_edges],
                                              signed_edge_weights[np.logical_not(mutex_edges)],
                                              -signed_edge_weights[mutex_edges])
         else:
-            node_labels = compute_single_linkage_clustering(nb_nodes,
+            node_labels = aff_segm.compute_single_linkage_clustering(nb_nodes,
                                                         uv_ids[np.logical_not(mutex_edges)],
                                                         uv_ids[mutex_edges],
                                                         signed_edge_weights[np.logical_not(mutex_edges)],

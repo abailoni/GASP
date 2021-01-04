@@ -105,7 +105,7 @@ class GaspFromAffinities(object):
         self.superpixel_generator = superpixel_generator
 
     def __call__(self, affinities, *args_superpixel_gen,
-                 mask_used_edges=None):
+                 mask_used_edges=None, affinities_weights=None):
         """
         Parameters
         ----------
@@ -134,11 +134,15 @@ class GaspFromAffinities(object):
         if self.superpixel_generator is not None:
             superpixel_segmentation = self.superpixel_generator(affinities_, *args_superpixel_gen)
             return self.run_GASP_from_superpixels(affinities_, superpixel_segmentation,
-                                                  mask_used_edges=mask_used_edges)
+                                                  mask_used_edges=mask_used_edges,
+                                                  affinities_weights=affinities_weights)
         else:
-            return self.run_GASP_from_pixels(affinities_, mask_used_edges=mask_used_edges)
+            return self.run_GASP_from_pixels(affinities_, mask_used_edges=mask_used_edges,
+                                             affinities_weights=affinities_weights)
 
-    def run_GASP_from_pixels(self, affinities, mask_used_edges=None):
+    def run_GASP_from_pixels(self, affinities, mask_used_edges=None,
+                             affinities_weights=None):
+        assert affinities_weights is None, "Not yet implemented from pixels"
         assert affinities.shape[0] == len(self.offsets)
         offsets = self.offsets
         if self.used_offsets is not None:
@@ -181,7 +185,8 @@ class GaspFromAffinities(object):
         return segmentation, runtime
 
     def run_GASP_from_superpixels(self, affinities, superpixel_segmentation,
-                                  mask_used_edges=None):
+                                  mask_used_edges=None, affinities_weights=None):
+        # TODO: compute affiniteis_weights automatically from segmentation if needed
         assert mask_used_edges is None, "Edge mask cannot be used when starting from a segmentation"
         featurer = AccumulatorLongRangeAffs(self.offsets,
                                             offsets_weights=self.offsets_weights,
@@ -194,7 +199,8 @@ class GaspFromAffinities(object):
                                             return_dict=True)
 
         # Compute graph and edge weights by accumulating over the affinities:
-        featurer_outputs = featurer(affinities, superpixel_segmentation)
+        featurer_outputs = featurer(affinities, superpixel_segmentation,
+                                    affinities_weights=affinities_weights)
         graph = featurer_outputs['graph']
         edge_indicators = featurer_outputs['edge_indicators']
         edge_sizes = featurer_outputs['edge_sizes']
