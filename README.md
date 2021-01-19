@@ -3,14 +3,19 @@ Generalized Algorithm for Signed graph Partitioning
 
 
 ## Installation
-#### On Linux
-- Create conda environment and install the `nifty` and `vigra` packages with: `conda create -n GASP -c abailoni -c conda-forge nifty vigra`. The source code for the `nifty` package can also be found here: https://github.com/abailoni/nifty
+
+- On linux, the package can be easily installed via conda: 
+    - `conda create -n GASP -c abailoni -c conda-forge gasp`
+    -  Activate your new environment: `source activate GASP`
+
+<!-- 
+- Create conda environment and install the `nifty` and `vigra` packages with: `conda create -n GASP -c abailoni -c conda-forge nifty=1.0.9 vigra affogato=0.2.2`. The source code for the `nifty` package can also be found here: https://github.com/abailoni/nifty
 - Activate the environment: `source activate GASP`
 - Clone this repository: `git clone https://github.com/abailoni/GASP.git`
 - `cd ./GASP`
 - Install the package: `python setup.py install`
 
-<!--
+
     - Dependencies to check: h5py
     - Add arXiv link
     -
