@@ -25,11 +25,11 @@ install:
   # install conda-build
   - conda install -q conda-build
   # build conda recipe
-  - conda build -c conda-forge -c cpape --python=$TRAVIS_PYTHON_VERSION conda-recipe
+  - conda build -c conda-forge -c abailoni --python=$TRAVIS_PYTHON_VERSION conda-recipe
 
 before_script:
   # create test env
-  - conda create -n GASP -c conda-forge -c cpape --use-local python=$TRAVIS_PYTHON_VERSION GASP
+  - conda create -n GASP -c conda-forge -c abailoni --use-local python=$TRAVIS_PYTHON_VERSION GASP
   - conda activate GASP
   # install test dependencies
   - conda install pytest
