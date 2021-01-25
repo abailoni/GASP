@@ -18,6 +18,7 @@ def run_GASP(
         use_efficient_implementations=True,
         verbose=False,
         linkage_criteria_kwargs=None,
+        merge_constrained_edges_at_the_end=False,
         print_every=100000):
     """
     Run the Generalized Algorithm for Agglomerative Clustering on Signed Graphs (GASP).
@@ -119,7 +120,8 @@ def run_GASP(
                                                      linkage_criteria=linkage_criteria,
                                                      linkage_criteria_kwargs=linkage_criteria_kwargs,
                                                      add_cannot_link_constraints=add_cannot_link_constraints,
-                                                     is_mergeable_edge=is_mergeable_edge)
+                                                     is_mergeable_edge=is_mergeable_edge,
+                                                     merge_constrained_edges_at_the_end=merge_constrained_edges_at_the_end)
         agglomerativeClustering = nifty_agglo.agglomerativeClustering(cluster_policy)
 
         # Run clustering:
