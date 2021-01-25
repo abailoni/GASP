@@ -104,7 +104,8 @@ class SizeThreshAndGrowWithWS(object):
                  apply_WS_growing=True,
                  size_of_2d_slices=False,
                  debug=False,
-                 with_background=False):
+                 with_background=False,
+                 invert_affinities=False):
         """
         :param apply_WS_growing: if False, then the 'seed_mask' is returned
         :param size_of_2d_slices: compute size for all z-slices (memory efficient)
@@ -117,9 +118,13 @@ class SizeThreshAndGrowWithWS(object):
         self.debug = debug
         self.size_of_2d_slices = size_of_2d_slices
         self.with_background = with_background
+        self.invert_affinities = invert_affinities
 
     def __call__(self, affinities, label_image):
         assert len(self.offsets) == affinities.shape[0], "Affinities does not match offsets"
+        if self.invert_affinities:
+            affinities = 1. - affinities
+
         if self.debug:
             print("Computing segment sizes...")
         label_image = label_image.astype(np.uint32)

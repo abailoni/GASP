@@ -6,7 +6,7 @@ from .core import run_GASP
 from ...affinities.accumulator import AccumulatorLongRangeAffs
 from ...affinities.utils import probs_to_costs
 from ...utils.graph import build_pixel_long_range_grid_graph_from_offsets
-from ...utils.various import check_offsets
+from ...utils.various import check_offsets, find_indices_direct_neighbors_in_offsets
 
 
 class GaspFromAffinities(object):
@@ -21,7 +21,8 @@ class GaspFromAffinities(object):
                  offsets_probabilities=None,
                  use_logarithmic_weights=False,
                  used_offsets=None,
-                 offsets_weights=None):
+                 offsets_weights=None,
+                 return_extra_outputs=False):
         """
         Run the Generalized Algorithm for Signed Graph Agglomerative Partitioning from affinities computed from
         an image. The clustering can be both initialized from pixels and superpixels.
@@ -67,15 +68,25 @@ class GaspFromAffinities(object):
         self.offsets = offsets
 
         # Parse inputs:
+        if offsets_probabilities is not None:
+            if isinstance(offsets_probabilities, (float, int)):
+                is_offset_direct_neigh, _ = find_indices_direct_neighbors_in_offsets(offsets)
+                offsets_probabilities = np.ones((offsets.shape[0],), dtype="float32") * offsets_probabilities
+                # Direct neighbors should be always added:
+                offsets_probabilities[is_offset_direct_neigh] = 1.
+            else:
+                offsets_probabilities = np.require(offsets_probabilities, dtype='float32')
+                assert len(offsets_probabilities) == len(offsets)
+
+        if offsets_weights is not None:
+            offsets_weights = np.require(offsets_weights, dtype='float32')
+            assert len(offsets_weights) == len(offsets)
+
         if used_offsets is not None:
             assert len(used_offsets) < offsets.shape[0]
             if offsets_probabilities is not None:
-                offsets_probabilities = np.require(offsets_probabilities, dtype='float32')
-                assert len(offsets_probabilities) == len(offsets)
                 offsets_probabilities = offsets_probabilities[used_offsets]
             if offsets_weights is not None:
-                offsets_weights = np.require(offsets_weights, dtype='float32')
-                assert len(offsets_weights) == len(offsets)
                 offsets_weights = offsets_weights[used_offsets]
 
         self.offsets_probabilities = offsets_probabilities
@@ -103,6 +114,7 @@ class GaspFromAffinities(object):
         self.use_logarithmic_weights = use_logarithmic_weights
 
         self.superpixel_generator = superpixel_generator
+        self.return_extra_outputs = return_extra_outputs
 
     def __call__(self, affinities, *args_superpixel_gen,
                  mask_used_edges=None, affinities_weights=None):
@@ -148,10 +160,14 @@ class GaspFromAffinities(object):
         if self.used_offsets is not None:
             affinities = affinities[self.used_offsets]
             offsets = offsets[self.used_offsets]
+            if mask_used_edges is not None:
+                mask_used_edges = mask_used_edges[self.used_offsets]
 
         image_shape = affinities.shape[1:]
 
         # Build graph:
+        if self.verbose:
+            print("Building graph...")
         graph, is_local_edge, edge_sizes = \
             build_pixel_long_range_grid_graph_from_offsets(
                 image_shape,
@@ -165,13 +181,15 @@ class GaspFromAffinities(object):
         edge_weights = graph.edgeValues(np.rollaxis(affinities, 0, 4))
 
         # Compute log costs:
+        log_costs = probs_to_costs(1 - edge_weights, beta=self.beta_bias)
         if self.use_logarithmic_weights:
-            log_costs = probs_to_costs(1 - edge_weights, beta=self.beta_bias)
             signed_weights = log_costs
         else:
             signed_weights = edge_weights - self.beta_bias
 
         # Run GASP:
+        if self.verbose:
+            print("Start agglo...")
         nodeSeg, runtime = run_GASP(graph,
                                     signed_weights,
                                     edge_sizes=edge_sizes,
@@ -179,15 +197,25 @@ class GaspFromAffinities(object):
                                     verbose=self.verbose,
                                     **self.run_GASP_kwargs)
 
+
         # TODO: map ignore label -1 to 0!
         segmentation = nodeSeg.reshape(image_shape)
 
-        return segmentation, runtime
+
+        if self.return_extra_outputs:
+            MC_energy = self.get_multicut_energy(graph, nodeSeg, log_costs)
+            out_dict = {"multicut_energy": MC_energy,
+                        "runtime": runtime}
+            return segmentation, out_dict
+        else:
+            return segmentation, runtime
+
 
     def run_GASP_from_superpixels(self, affinities, superpixel_segmentation,
                                   mask_used_edges=None, affinities_weights=None):
         # TODO: compute affiniteis_weights automatically from segmentation if needed
-        assert mask_used_edges is None, "Edge mask cannot be used when starting from a segmentation"
+        # When I will implement the mask_edge, remeber to crop it depending on the used offsets
+        assert mask_used_edges is None, "Edge mask cannot be used when starting from a segmentation."
         featurer = AccumulatorLongRangeAffs(self.offsets,
                                             offsets_weights=self.offsets_weights,
                                             used_offsets=self.used_offsets,
@@ -207,8 +235,8 @@ class GaspFromAffinities(object):
         is_local_edge = featurer_outputs['is_local_edge']
 
         # Optionally, use logarithmic weights and apply bias parameter
+        log_costs = probs_to_costs(1 - edge_indicators, beta=self.beta_bias)
         if self.use_logarithmic_weights:
-            log_costs = probs_to_costs(1 - edge_indicators, beta=self.beta_bias)
             signed_weights = log_costs
         else:
             signed_weights = edge_indicators - self.beta_bias
@@ -233,7 +261,18 @@ class GaspFromAffinities(object):
         # Increase by one, so ignore label becomes 0:
         final_segm += 1
 
-        return final_segm, runtime
+        if self.return_extra_outputs:
+            MC_energy = self.get_multicut_energy(graph, node_labels, log_costs)
+            out_dict = {"multicut_energy": MC_energy,
+                        "runtime": runtime}
+            return final_segm, out_dict
+        else:
+            return final_segm, runtime
+
+
+    def get_multicut_energy(self, graph, node_segm, log_edge_weights):
+        edge_labels = graph.nodeLabelsToEdgeLabels(node_segm)
+        return (log_edge_weights * edge_labels).sum()
 
 
 class SegmentationFeeder(object):

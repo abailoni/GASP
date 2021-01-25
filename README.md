@@ -1,5 +1,10 @@
+
 # GASP
+[![Build Status](https://travis-ci.com/abailoni/GASP.svg?branch=master)](https://travis-ci.com/abailoni/GASP)
+
 Generalized Algorithm for Signed graph Partitioning
+
+
 
 
 ## Installation
