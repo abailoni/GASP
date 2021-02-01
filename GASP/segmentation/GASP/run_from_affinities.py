@@ -190,12 +190,13 @@ class GaspFromAffinities(object):
         # Run GASP:
         if self.verbose:
             print("Start agglo...")
-        nodeSeg, runtime = run_GASP(graph,
+        nodeSeg, runtime, data = run_GASP(graph,
                                     signed_weights,
                                     edge_sizes=edge_sizes,
                                     is_mergeable_edge=is_local_edge,
                                     verbose=self.verbose,
-                                    **self.run_GASP_kwargs)
+                                    **self.run_GASP_kwargs,
+                                    use_efficient_implementations=False)
 
 
         # TODO: map ignore label -1 to 0!
@@ -208,8 +209,7 @@ class GaspFromAffinities(object):
                         "runtime": runtime}
             return segmentation, out_dict
         else:
-            return segmentation, runtime
-
+            return nodeSeg, runtime, data
 
     def run_GASP_from_superpixels(self, affinities, superpixel_segmentation,
                                   mask_used_edges=None, affinities_weights=None):

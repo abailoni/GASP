@@ -128,7 +128,7 @@ class AccumulatorLongRangeAffs(object):
             segmentation if not has_background_label else extra_dict['updated_segmentation'],
             graph=lifted_graph,
             offset_weights=offsets_weights,
-            affinities_weights=affinities_weights,
+            #affinities_weights=affinities_weights,
             ignore_label=None if not has_background_label else extra_dict['background_label'],
             number_of_threads=self.n_threads
         )

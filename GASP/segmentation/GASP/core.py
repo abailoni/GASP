@@ -132,5 +132,9 @@ def run_GASP(
 
         # Collect results:
         node_labels = agglomerativeClustering.result()
-    return node_labels, runtime
 
+        # Collect statistics
+        data = cluster_policy.exportAgglomerationData()
+        return node_labels, runtime, data
+
+    return node_labels, runtime
