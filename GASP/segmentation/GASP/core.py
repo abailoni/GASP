@@ -19,6 +19,7 @@ def run_GASP(
         verbose=False,
         linkage_criteria_kwargs=None,
         merge_constrained_edges_at_the_end=False,
+        export_agglomeration_data=False,
         print_every=100000):
     """
     Run the Generalized Algorithm for Agglomerative Clustering on Signed Graphs (GASP).
@@ -89,10 +90,13 @@ def run_GASP(
 
     if use_efficient_implementations and (linkage_criteria in ['mutex_watershed', 'abs_max'] or
                                           (linkage_criteria == 'max' and not add_cannot_link_constraints)):
+        assert not export_agglomeration_data, "Exporting extra agglomeration data is not possible when using " \
+                                            "the efficient implementation."
         if is_mergeable_edge is not None:
             if not is_mergeable_edge.all():
-                print("WARNING: Efficient implementations only works when all edges are mergeable")
-            # assert is_mergeable_edge.all(), "Efficient implementations only works when all edges are mergeable"
+                print("WARNING: Efficient implementations only works when all edges are mergeable. "
+                      "In this mode, lifted and local edges will be treated equally, so there could be final clusters "
+                      "consisting of multiple components 'disconnennted' in the image plane.")
         # assert is_mergeable_edge is None, "Efficient implementations only works when all edges are mergeable"
         nb_nodes = graph.numberOfNodes
         uv_ids = graph.uvIds()
@@ -121,7 +125,8 @@ def run_GASP(
                                                      linkage_criteria_kwargs=linkage_criteria_kwargs,
                                                      add_cannot_link_constraints=add_cannot_link_constraints,
                                                      is_mergeable_edge=is_mergeable_edge,
-                                                     merge_constrained_edges_at_the_end=merge_constrained_edges_at_the_end)
+                                                     merge_constrained_edges_at_the_end=merge_constrained_edges_at_the_end,
+                                                     collect_stats_for_exported_data=export_agglomeration_data)
         agglomerativeClustering = nifty_agglo.agglomerativeClustering(cluster_policy)
 
         # Run clustering:
@@ -133,8 +138,11 @@ def run_GASP(
         # Collect results:
         node_labels = agglomerativeClustering.result()
 
-        # Collect statistics
-        data = cluster_policy.exportAgglomerationData()
-        return node_labels, runtime, data
+        if export_agglomeration_data:
+            exported_data = cluster_policy.exportAgglomerationData()
 
-    return node_labels, runtime
+    if export_agglomeration_data:
+        out_dict = {'agglomeration_data': exported_data}
+        return node_labels, runtime, out_dict
+    else:
+        return node_labels, runtime

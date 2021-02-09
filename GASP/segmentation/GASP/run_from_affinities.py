@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 
 from nifty import tools as ntools
 
@@ -22,7 +23,8 @@ class GaspFromAffinities(object):
                  use_logarithmic_weights=False,
                  used_offsets=None,
                  offsets_weights=None,
-                 return_extra_outputs=False):
+                 return_extra_outputs=False,
+                 set_only_direct_neigh_as_mergeable=True):
         """
         Run the Generalized Algorithm for Signed Graph Agglomerative Partitioning from affinities computed from
         an image. The clustering can be both initialized from pixels and superpixels.
@@ -115,6 +117,7 @@ class GaspFromAffinities(object):
 
         self.superpixel_generator = superpixel_generator
         self.return_extra_outputs = return_extra_outputs
+        self.set_only_direct_neigh_as_mergeable = set_only_direct_neigh_as_mergeable
 
     def __call__(self, affinities, *args_superpixel_gen,
                  mask_used_edges=None, affinities_weights=None):
@@ -175,10 +178,12 @@ class GaspFromAffinities(object):
                 offsets_probabilities=self.offsets_probabilities,
                 mask_used_edges=mask_used_edges,
                 offset_weights=self.offsets_weights,
-                set_only_direct_neigh_as_mergeable=True
+                set_only_direct_neigh_as_mergeable=self.set_only_direct_neigh_as_mergeable
             )
 
         edge_weights = graph.edgeValues(np.rollaxis(affinities, 0, 4))
+        # counts = np.unique(edge_weights, return_counts=True)[1]
+        # print("Max count: ", counts.max())
 
         # Compute log costs:
         log_costs = probs_to_costs(1 - edge_weights, beta=self.beta_bias)
@@ -190,14 +195,19 @@ class GaspFromAffinities(object):
         # Run GASP:
         if self.verbose:
             print("Start agglo...")
-        nodeSeg, runtime, data = run_GASP(graph,
+        export_agglomeration_data = self.run_GASP_kwargs.get("export_agglomeration_data", False)
+        outputs = run_GASP(graph,
                                     signed_weights,
                                     edge_sizes=edge_sizes,
                                     is_mergeable_edge=is_local_edge,
                                     verbose=self.verbose,
-                                    **self.run_GASP_kwargs,
-                                    use_efficient_implementations=False)
+                                    **self.run_GASP_kwargs)
 
+        if export_agglomeration_data:
+            nodeSeg, runtime, exported_data = outputs
+        else:
+            exported_data = {}
+            nodeSeg, runtime = outputs
 
         # TODO: map ignore label -1 to 0!
         segmentation = nodeSeg.reshape(image_shape)
@@ -206,16 +216,25 @@ class GaspFromAffinities(object):
         if self.return_extra_outputs:
             MC_energy = self.get_multicut_energy(graph, nodeSeg, log_costs)
             out_dict = {"multicut_energy": MC_energy,
-                        "runtime": runtime}
+                        "runtime": runtime,
+                        "graph": graph,
+                        "is_local_edge": is_local_edge,
+                        "edge_sizes": edge_sizes
+                        }
+            if export_agglomeration_data:
+                out_dict.update(exported_data)
             return segmentation, out_dict
         else:
-            return nodeSeg, runtime, data
+            if export_agglomeration_data:
+                warnings.warn("In order to export agglomeration data, also set the `return_extra_outputs` to True")
+            return nodeSeg, runtime
 
     def run_GASP_from_superpixels(self, affinities, superpixel_segmentation,
                                   mask_used_edges=None, affinities_weights=None):
         # TODO: compute affiniteis_weights automatically from segmentation if needed
         # When I will implement the mask_edge, remeber to crop it depending on the used offsets
         assert mask_used_edges is None, "Edge mask cannot be used when starting from a segmentation."
+        assert self.set_only_direct_neigh_as_mergeable, "Not implemented atm from superpixels"
         featurer = AccumulatorLongRangeAffs(self.offsets,
                                             offsets_weights=self.offsets_weights,
                                             used_offsets=self.used_offsets,
@@ -242,6 +261,9 @@ class GaspFromAffinities(object):
             signed_weights = edge_indicators - self.beta_bias
 
         # Run GASP:
+        export_agglomeration_data = self.run_GASP_kwargs.get("export_agglomeration_data", False)
+        # TODO: add extra outputs to dict (including graphs and so on)
+        assert not export_agglomeration_data, "Not supported yet starting from superpixels"
         node_labels, runtime = \
             run_GASP(graph, signed_weights,
                      edge_sizes=edge_sizes,

@@ -121,6 +121,8 @@ class AccumulatorLongRangeAffs(object):
             print("Computing edge_features...")
             tick = time.time()
 
+        # FIXME: here offsets_probs and offsets_weights are not consistent... (and make it support edge_mask)
+        #   very likelt I need to create a mask from probs if present and then use it for both (to keep it consistent)
         # Compute edge sizes and accumulate average:
         edge_indicators, edge_sizes = nrag.accumulate_affinities_mean_and_length(
             affinities,
@@ -128,7 +130,7 @@ class AccumulatorLongRangeAffs(object):
             segmentation if not has_background_label else extra_dict['updated_segmentation'],
             graph=lifted_graph,
             offset_weights=offsets_weights,
-            #affinities_weights=affinities_weights,
+            affinities_weights=affinities_weights,
             ignore_label=None if not has_background_label else extra_dict['background_label'],
             number_of_threads=self.n_threads
         )

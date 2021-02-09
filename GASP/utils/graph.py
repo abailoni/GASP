@@ -33,6 +33,10 @@ def build_lifted_graph_from_rag(rag,
                                 number_of_threads=-1,
                                 has_background_label=False,
                                 add_lifted_edges=True):
+    # TODO: in order to support an edge_mask, getting the lifted edges is the easy part, but then I also need to accumulate
+    #   affinities properly (and ignore those not in the mask)
+    # TODO: add options `set_only_local_connections_as_mergeable` similarly to `build_pixel_long_range_grid_graph_from_offsets`
+
     if not has_background_label:
         nb_local_edges = rag.numberOfEdges
         final_graph = rag
@@ -58,6 +62,8 @@ def build_lifted_graph_from_rag(rag,
             final_graph.insertEdges(local_edges)
 
         # Find lifted edges:
+        # Note that this function could return the same lifted edge multiple times, so I need to add them to the graph
+        # to see how many will be actually added
         possibly_lifted_edges = ngraph.rag.compute_lifted_edges_from_rag_and_offsets(rag,
                                                                                      offsets,
                                                                                      numberOfThreads=number_of_threads)
