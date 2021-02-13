@@ -8,6 +8,16 @@ from .various import check_offsets, find_indices_direct_neighbors_in_offsets
 
 
 def get_rag(segmentation, nb_threads):
+    """
+    If the segmentation has values equal to -1, those are interpreted as background pixels.
+
+    When this rag is build, the node IDs will be taken from segmentation and the background_node will have ID
+    previous_max_label+1
+
+    In `build_lifted_graph_from_rag`, the background node and all the edges connecting to it are ignored while creating
+    the new (possibly lifted) undirected graph.
+    """
+
     # Check if the segmentation has a background label that should be ignored in the graph:
     min_label = segmentation.min()
     if min_label >= 0:
@@ -33,6 +43,13 @@ def build_lifted_graph_from_rag(rag,
                                 number_of_threads=-1,
                                 has_background_label=False,
                                 add_lifted_edges=True):
+    """
+    If has_background_label is true, it assumes that it has label rag.numberOfNodes - 1 (See function `get_rag`)
+    The background node and all the edges connecting to it are ignored when creating
+    the new (possibly lifted) undirected graph.
+    -------
+
+    """
     # TODO: in order to support an edge_mask, getting the lifted edges is the easy part, but then I also need to accumulate
     #   affinities properly (and ignore those not in the mask)
     # TODO: add options `set_only_local_connections_as_mergeable` similarly to `build_pixel_long_range_grid_graph_from_offsets`

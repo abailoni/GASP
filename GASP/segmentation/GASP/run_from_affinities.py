@@ -24,7 +24,9 @@ class GaspFromAffinities(object):
                  used_offsets=None,
                  offsets_weights=None,
                  return_extra_outputs=False,
-                 set_only_direct_neigh_as_mergeable=True):
+                 set_only_direct_neigh_as_mergeable=True,
+                 ignore_edge_sizes=False, # TODO: delete. It should never be True for superpixels...
+                 ):
         """
         Run the Generalized Algorithm for Signed Graph Agglomerative Partitioning from affinities computed from
         an image. The clustering can be both initialized from pixels and superpixels.
@@ -118,6 +120,7 @@ class GaspFromAffinities(object):
         self.superpixel_generator = superpixel_generator
         self.return_extra_outputs = return_extra_outputs
         self.set_only_direct_neigh_as_mergeable = set_only_direct_neigh_as_mergeable
+        self.ignore_edge_sizes = ignore_edge_sizes
 
     def __call__(self, affinities, *args_superpixel_gen,
                  mask_used_edges=None, affinities_weights=None):
@@ -192,6 +195,9 @@ class GaspFromAffinities(object):
         else:
             signed_weights = edge_weights - self.beta_bias
 
+        if self.ignore_edge_sizes:
+            edge_sizes = np.ones_like(edge_sizes)
+
         # Run GASP:
         if self.verbose:
             print("Start agglo...")
@@ -214,7 +220,7 @@ class GaspFromAffinities(object):
 
 
         if self.return_extra_outputs:
-            MC_energy = self.get_multicut_energy(graph, nodeSeg, log_costs)
+            MC_energy = self.get_multicut_energy(graph, nodeSeg, log_costs, edge_sizes)
             out_dict = {"multicut_energy": MC_energy,
                         "runtime": runtime,
                         "graph": graph,
@@ -253,6 +259,9 @@ class GaspFromAffinities(object):
         edge_sizes = featurer_outputs['edge_sizes']
         is_local_edge = featurer_outputs['is_local_edge']
 
+        if self.ignore_edge_sizes:
+            edge_sizes = np.ones_like(edge_sizes)
+
         # Optionally, use logarithmic weights and apply bias parameter
         log_costs = probs_to_costs(1 - edge_indicators, beta=self.beta_bias)
         if self.use_logarithmic_weights:
@@ -262,14 +271,19 @@ class GaspFromAffinities(object):
 
         # Run GASP:
         export_agglomeration_data = self.run_GASP_kwargs.get("export_agglomeration_data", False)
-        # TODO: add extra outputs to dict (including graphs and so on)
-        assert not export_agglomeration_data, "Not supported yet starting from superpixels"
-        node_labels, runtime = \
+        outputs = \
             run_GASP(graph, signed_weights,
                      edge_sizes=edge_sizes,
                      is_mergeable_edge=is_local_edge,
                      verbose=self.verbose,
                      **self.run_GASP_kwargs)
+
+        if export_agglomeration_data:
+            node_labels, runtime, exported_data = outputs
+        else:
+            exported_data = {}
+            node_labels, runtime = outputs
+
 
         # Map node labels back to the original superpixel segmentation:
         final_segm = ntools.mapFeaturesToLabelArray(
@@ -280,21 +294,44 @@ class GaspFromAffinities(object):
             ignore_label=-1,
         )[..., 0].astype(np.int64)
 
-        # Increase by one, so ignore label becomes 0:
-        final_segm += 1
+        # If there was a background label, reset it to zero:
+        min_label = final_segm.min()
+        if min_label < 0:
+            assert min_label == -1
+
+            # Move bacground label to 0, and map 0 segment (if any) to MAX_LABEL+1.
+            # In this way, most of the final labels will stay consistent with the graph and given over-segmentation
+            background_mask = final_segm == min_label
+            zero_mask = final_segm == 0
+            if np.any(zero_mask):
+                max_label = final_segm.max()
+                warnings.warn("Zero segment remapped to {} in final segmentation".format(max_label+1))
+                final_segm[zero_mask] = max_label + 1
+            final_segm[background_mask] = 0
+
 
         if self.return_extra_outputs:
-            MC_energy = self.get_multicut_energy(graph, node_labels, log_costs)
+            MC_energy = self.get_multicut_energy(graph, node_labels, log_costs, edge_sizes)
             out_dict = {"multicut_energy": MC_energy,
-                        "runtime": runtime}
+                        "runtime": runtime,
+                        "graph": graph,
+                        "is_local_edge": is_local_edge,
+                        "edge_sizes": edge_sizes
+                        }
+            if export_agglomeration_data:
+                out_dict.update(exported_data)
             return final_segm, out_dict
         else:
+            if export_agglomeration_data:
+                warnings.warn("In order to export agglomeration data, also set the `return_extra_outputs` to True")
             return final_segm, runtime
 
 
-    def get_multicut_energy(self, graph, node_segm, log_edge_weights):
+    def get_multicut_energy(self, graph, node_segm, log_edge_weights, edge_sizes=None):
+        if edge_sizes is None:
+            edge_sizes = np.ones_like(log_edge_weights)
         edge_labels = graph.nodeLabelsToEdgeLabels(node_segm)
-        return (log_edge_weights * edge_labels).sum()
+        return (log_edge_weights * edge_labels * edge_sizes).sum()
 
 
 class SegmentationFeeder(object):
