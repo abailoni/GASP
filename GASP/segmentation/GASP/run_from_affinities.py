@@ -2,6 +2,7 @@ import numpy as np
 import warnings
 
 from nifty import tools as ntools
+from affogato.affinities import compute_affinities
 
 from .core import run_GASP
 from ...affinities.accumulator import AccumulatorLongRangeAffs
@@ -123,7 +124,7 @@ class GaspFromAffinities(object):
         self.ignore_edge_sizes = ignore_edge_sizes
 
     def __call__(self, affinities, *args_superpixel_gen,
-                 mask_used_edges=None, affinities_weights=None):
+                 mask_used_edges=None, affinities_weights=None, foreground_mask=None):
         """
         Parameters
         ----------
@@ -150,15 +151,15 @@ class GaspFromAffinities(object):
             affinities_ = affinities
 
         if self.superpixel_generator is not None:
-            superpixel_segmentation = self.superpixel_generator(affinities_, *args_superpixel_gen)
+            superpixel_segmentation = self.superpixel_generator(affinities_, *args_superpixel_gen, foreground_mask=foreground_mask)
             return self.run_GASP_from_superpixels(affinities_, superpixel_segmentation,
                                                   mask_used_edges=mask_used_edges,
-                                                  affinities_weights=affinities_weights)
+                                                  affinities_weights=affinities_weights, foreground_mask=foreground_mask)
         else:
             return self.run_GASP_from_pixels(affinities_, mask_used_edges=mask_used_edges,
-                                             affinities_weights=affinities_weights)
+                                             affinities_weights=affinities_weights, foreground_mask=foreground_mask)
 
-    def run_GASP_from_pixels(self, affinities, mask_used_edges=None,
+    def run_GASP_from_pixels(self, affinities, mask_used_edges=None, foreground_mask=None,
                              affinities_weights=None):
         assert affinities_weights is None, "Not yet implemented from pixels"
         assert affinities.shape[0] == len(self.offsets)
@@ -168,6 +169,9 @@ class GaspFromAffinities(object):
             offsets = offsets[self.used_offsets]
             if mask_used_edges is not None:
                 mask_used_edges = mask_used_edges[self.used_offsets]
+
+        if foreground_mask is not None:
+            mask_used_edges = self.from_foreground_mask_to_edge_mask(foreground_mask, offsets, mask_used_edges=mask_used_edges)
 
         image_shape = affinities.shape[1:]
 
@@ -215,8 +219,16 @@ class GaspFromAffinities(object):
             exported_data = {}
             nodeSeg, runtime = outputs
 
-        # TODO: map ignore label -1 to 0!
+        # TODO: apply foreground_mask again
         segmentation = nodeSeg.reshape(image_shape)
+
+        if foreground_mask is not None:
+            zero_mask = segmentation == 0
+            segmentation[foreground_mask == 0] = 0
+            if np.any(zero_mask):
+                max_label = segmentation.max()
+                warnings.warn("Zero segment remapped to {} in final segmentation".format(max_label + 1))
+                segmentation[zero_mask] = max_label + 1
 
 
         if self.return_extra_outputs:
@@ -235,7 +247,7 @@ class GaspFromAffinities(object):
                 warnings.warn("In order to export agglomeration data, also set the `return_extra_outputs` to True")
             return nodeSeg, runtime
 
-    def run_GASP_from_superpixels(self, affinities, superpixel_segmentation,
+    def run_GASP_from_superpixels(self, affinities, superpixel_segmentation, foreground_mask=None,
                                   mask_used_edges=None, affinities_weights=None):
         # TODO: compute affiniteis_weights automatically from segmentation if needed
         # When I will implement the mask_edge, remeber to crop it depending on the used offsets
@@ -332,6 +344,24 @@ class GaspFromAffinities(object):
             edge_sizes = np.ones_like(log_edge_weights)
         edge_labels = graph.nodeLabelsToEdgeLabels(node_segm)
         return (log_edge_weights * edge_labels * edge_sizes).sum()
+
+    def from_foreground_mask_to_edge_mask(self, foreground_mask, offsets, mask_used_edges=None):
+        import time
+        tick = time.time()
+        _, valid_edges = compute_affinities(foreground_mask.astype('uint64'), offsets.tolist(), True, 0)
+
+        # from pathutils import get_trendytukan_drive_dir
+        # from segmfriends.utils import writeHDF5
+        # import os
+        # writeHDF5(valid_edges,os.path.join(get_trendytukan_drive_dir(), "debug_edge_mask.h5"),"data")
+
+        print("Converting foreground mask to edge mask took {}s".format(time.time()-tick))
+        if mask_used_edges is not None:
+            return np.logical_and(valid_edges, mask_used_edges)
+        else:
+            return valid_edges.astype('bool')
+
+        pass
 
 
 class SegmentationFeeder(object):
