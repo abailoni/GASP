@@ -1,9 +1,13 @@
 import numpy as np
 import warnings
+import time
 
 from nifty import tools as ntools
 from affogato.affinities import compute_affinities
-
+try:
+    from affogato.segmentation import compute_mws_segmentation_from_affinities
+except ImportError:
+    compute_mws_segmentation_from_affinities = None
 from .core import run_GASP
 from ...affinities.accumulator import AccumulatorLongRangeAffs
 from ...affinities.utils import probs_to_costs
@@ -175,6 +179,31 @@ class GaspFromAffinities(object):
 
         image_shape = affinities.shape[1:]
 
+        # Check if I should use efficient implementation of the MWS:
+        run_kwargs = self.run_GASP_kwargs
+        export_agglomeration_data = run_kwargs.get("export_agglomeration_data", False)
+        if run_kwargs.get("use_efficient_implementations", True) and run_kwargs.get("linkage_criteria") in ['mutex_watershed', 'abs_max']:
+            assert compute_mws_segmentation_from_affinities is not None, "Efficient MWS implementation not available. Update the affogato repository "
+            assert not export_agglomeration_data, "Exporting extra agglomeration data is not possible when using " \
+                                                  "the efficient implementation of MWS."
+            if self.set_only_direct_neigh_as_mergeable:
+                warnings.warn("With efficient implementation of MWS, it is not possible to set only direct neighbors"
+                              "as mergeable.")
+            tick = time.time()
+            segmentation, valid_edge_mask = compute_mws_segmentation_from_affinities(affinities, offsets,
+                                                     beta_parameter=self.beta_bias,
+                                                     foreground_mask=foreground_mask, edge_mask=mask_used_edges,
+                                                                    return_valid_edge_mask=True)
+            runtime = time.time() - tick
+            if self.return_extra_outputs:
+                MC_energy = self.get_multicut_energy_segmentation(segmentation,affinities,
+                                                                  offsets, valid_edge_mask)
+                out_dict = {'runtime': runtime,
+                            'multicut_energy': MC_energy}
+                return segmentation, out_dict
+            else:
+                return segmentation, runtime
+
         # Build graph:
         if self.verbose:
             print("Building graph...")
@@ -205,7 +234,7 @@ class GaspFromAffinities(object):
         # Run GASP:
         if self.verbose:
             print("Start agglo...")
-        export_agglomeration_data = self.run_GASP_kwargs.get("export_agglomeration_data", False)
+
         outputs = run_GASP(graph,
                                     signed_weights,
                                     edge_sizes=edge_sizes,
@@ -345,17 +374,19 @@ class GaspFromAffinities(object):
         edge_labels = graph.nodeLabelsToEdgeLabels(node_segm)
         return (log_edge_weights * edge_labels * edge_sizes).sum()
 
+    def get_multicut_energy_segmentation(self, pixel_segm, affinities, offsets, edge_mask=None):
+        if edge_mask is None:
+            edge_mask = np.ones_like(affinities, dtype='bool')
+
+        log_affinities = probs_to_costs(1 - affinities, beta=self.beta_bias)
+
+        # Find affinities "on cut":
+        affs_not_on_cut, _ = compute_affinities(pixel_segm.astype('uint64'), offsets.tolist(), False, 0)
+        return log_affinities[np.logical_and(affs_not_on_cut == 0, edge_mask)].sum()
+
     def from_foreground_mask_to_edge_mask(self, foreground_mask, offsets, mask_used_edges=None):
-        import time
-        tick = time.time()
         _, valid_edges = compute_affinities(foreground_mask.astype('uint64'), offsets.tolist(), True, 0)
 
-        # from pathutils import get_trendytukan_drive_dir
-        # from segmfriends.utils import writeHDF5
-        # import os
-        # writeHDF5(valid_edges,os.path.join(get_trendytukan_drive_dir(), "debug_edge_mask.h5"),"data")
-
-        print("Converting foreground mask to edge mask took {}s".format(time.time()-tick))
         if mask_used_edges is not None:
             return np.logical_and(valid_edges, mask_used_edges)
         else:
