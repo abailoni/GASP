@@ -179,6 +179,7 @@ class GaspFromAffinities(object):
 
         image_shape = affinities.shape[1:]
 
+        #affinities = affinities - np.mean(affinities, axis=(1,2,3))[:,np.newaxis,np.newaxis, np.newaxis]
         # Check if I should use efficient implementation of the MWS:
         run_kwargs = self.run_GASP_kwargs
         export_agglomeration_data = run_kwargs.get("export_agglomeration_data", False)
@@ -226,6 +227,8 @@ class GaspFromAffinities(object):
         if self.use_logarithmic_weights:
             signed_weights = log_costs
         else:
+
+            #signed_weights = edge_weights + 0.3
             signed_weights = edge_weights - self.beta_bias
 
         if self.ignore_edge_sizes:
@@ -261,12 +264,15 @@ class GaspFromAffinities(object):
 
 
         if self.return_extra_outputs:
-            MC_energy = self.get_multicut_energy(graph, nodeSeg, log_costs, edge_sizes)
+            frustration = self.get_frustration(graph, nodeSeg, signed_weights)
+            MC_energy = self.get_multicut_energy(graph, nodeSeg, signed_weights, edge_sizes)
             out_dict = {"multicut_energy": MC_energy,
                         "runtime": runtime,
                         "graph": graph,
-                        "is_local_edge": is_local_edge,
-                        "edge_sizes": edge_sizes
+                        #"is_local_edge": is_local_edge,
+                        #"edge_sizes": edge_sizes,
+                        "edge_weights": signed_weights,
+                        "frustration": frustration
                         }
             if export_agglomeration_data:
                 out_dict.update(exported_data)
@@ -352,7 +358,7 @@ class GaspFromAffinities(object):
 
 
         if self.return_extra_outputs:
-            MC_energy = self.get_multicut_energy(graph, node_labels, log_costs, edge_sizes)
+            MC_energy = self.get_multicut_energy(graph, node_labels, signed_weights, edge_sizes)
             out_dict = {"multicut_energy": MC_energy,
                         "runtime": runtime,
                         "graph": graph,
@@ -368,11 +374,11 @@ class GaspFromAffinities(object):
             return final_segm, runtime
 
 
-    def get_multicut_energy(self, graph, node_segm, log_edge_weights, edge_sizes=None):
+    def get_multicut_energy(self, graph, node_segm, edge_weights, edge_sizes=None):
         if edge_sizes is None:
             edge_sizes = np.ones_like(log_edge_weights)
         edge_labels = graph.nodeLabelsToEdgeLabels(node_segm)
-        return (log_edge_weights * edge_labels * edge_sizes).sum()
+        return (edge_weights * edge_labels * edge_sizes).sum()
 
     def get_multicut_energy_segmentation(self, pixel_segm, affinities, offsets, edge_mask=None):
         if edge_mask is None:
@@ -393,6 +399,14 @@ class GaspFromAffinities(object):
             return valid_edges.astype('bool')
 
         pass
+        return (edge_weights * edge_labels).sum()
+
+    def get_frustration(self, graph, node_segm, edge_weights):
+        edge_labels = graph.nodeLabelsToEdgeLabels(node_segm)
+        pos_frus = ((edge_weights>0) * edge_labels).sum()
+        neg_frus = ((edge_weights<0) * (1-edge_labels)).sum()
+        return [pos_frus, neg_frus]
+
 
 
 class SegmentationFeeder(object):
