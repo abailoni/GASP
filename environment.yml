@@ -1,0 +1,8 @@
+# run: conda env create --file environment.yml
+channels:
+  - abailoni
+  - conda-forge
+  - defaults
+dependencies:
+  - python <=3.7
+  - gasp

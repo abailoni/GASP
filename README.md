@@ -1,6 +1,5 @@
 
 # GASP
-[![Build Status](https://travis-ci.com/abailoni/GASP.svg?branch=master)](https://travis-ci.com/abailoni/GASP)
 
 Generalized Algorithm for Signed graph Partitioning
 
@@ -9,31 +8,12 @@ Generalized Algorithm for Signed graph Partitioning
 
 ## Installation
 
-- On linux, the package can be easily installed via conda: 
-    - `conda create -n GASP -c conda-forge -c abailoni gasp`
-    -  Activate your new environment: `conda activate GASP`
-
-<!-- 
-- Create conda environment and install the `nifty` and `vigra` packages with: `conda create -n GASP -c abailoni -c conda-forge nifty=1.0.9 vigra affogato=0.2.2`. The source code for the `nifty` package can also be found here: https://github.com/abailoni/nifty
-- Activate the environment: `source activate GASP`
-- Clone this repository: `git clone https://github.com/abailoni/GASP.git`
-- `cd ./GASP`
-- Install the package: `python setup.py install`
+- On linux, the package can be easily installed via conda (see [miniconda](https://docs.conda.io/en/latest/miniconda.html) or [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/)): 
+    - Download the file `environment.yml` and move to the directory where you downloaded it
+    - Run the command  `conda env create --name=GASP --file=environment.yml`
+    - Before to run any of the scripts, activate your new environment with `conda activate GASP`
 
 
-    - Dependencies to check: h5py
-    - Add arXiv link
-    -
-
-<!--
-## CREMI experiments
-
-
-To run GASP, go to the `experiments/CREMI` folder and run the `run_GASP` script:
-
-    python run_GASP.py /path/to/cremi/dataset/folder --samples A B C --linkage_criteria average --add_cannot_link_constraints false
--->
-<!-- Samples `A`, `B` and `C` correspond to training data. Samples `A+`, `B+` and `C+` correspond to test data. See more details about `linkage_criteria` below. -->
 ## How to use the package
 #### Examples
 In the folder `examples` there are some scripts to run the GASP algorithm directly on a graph or on affinities generated from an image.
