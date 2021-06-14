@@ -269,8 +269,8 @@ class GaspFromAffinities(object):
             out_dict = {"multicut_energy": MC_energy,
                         "runtime": runtime,
                         "graph": graph,
-                        #"is_local_edge": is_local_edge,
-                        #"edge_sizes": edge_sizes,
+                        "is_local_edge": is_local_edge,
+                        "edge_sizes": edge_sizes,
                         "edge_weights": signed_weights,
                         "frustration": frustration
                         }
@@ -376,7 +376,7 @@ class GaspFromAffinities(object):
 
     def get_multicut_energy(self, graph, node_segm, edge_weights, edge_sizes=None):
         if edge_sizes is None:
-            edge_sizes = np.ones_like(log_edge_weights)
+            edge_sizes = np.ones_like(edge_weights)
         edge_labels = graph.nodeLabelsToEdgeLabels(node_segm)
         return (edge_weights * edge_labels * edge_sizes).sum()
 
@@ -398,8 +398,7 @@ class GaspFromAffinities(object):
         else:
             return valid_edges.astype('bool')
 
-        pass
-        return (edge_weights * edge_labels).sum()
+        # return (edge_weights * edge_labels).sum()
 
     def get_frustration(self, graph, node_segm, edge_weights):
         edge_labels = graph.nodeLabelsToEdgeLabels(node_segm)
