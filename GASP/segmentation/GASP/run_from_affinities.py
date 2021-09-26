@@ -254,13 +254,14 @@ class GaspFromAffinities(object):
         # TODO: apply foreground_mask again
         segmentation = nodeSeg.reshape(image_shape)
 
-        if foreground_mask is not None:
-            zero_mask = segmentation == 0
-            segmentation[foreground_mask == 0] = 0
-            if np.any(zero_mask):
-                max_label = segmentation.max()
-                warnings.warn("Zero segment remapped to {} in final segmentation".format(max_label + 1))
-                segmentation[zero_mask] = max_label + 1
+        # FIXME: this remap label 0, which could be a problem in some cases...
+        # if foreground_mask is not None:
+        #     zero_mask = segmentation == 0
+        #     segmentation[foreground_mask == 0] = 0
+        #     if np.any(zero_mask):
+        #         max_label = segmentation.max()
+        #         warnings.warn("Zero segment remapped to {} in final segmentation".format(max_label + 1))
+        #         segmentation[zero_mask] = max_label + 1
 
 
         if self.return_extra_outputs:
@@ -280,7 +281,7 @@ class GaspFromAffinities(object):
         else:
             if export_agglomeration_data:
                 warnings.warn("In order to export agglomeration data, also set the `return_extra_outputs` to True")
-            return nodeSeg, runtime
+            return segmentation, runtime
 
     def run_GASP_from_superpixels(self, affinities, superpixel_segmentation, foreground_mask=None,
                                   mask_used_edges=None, affinities_weights=None):
