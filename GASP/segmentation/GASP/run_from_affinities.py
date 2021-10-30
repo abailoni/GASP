@@ -174,9 +174,6 @@ class GaspFromAffinities(object):
             if mask_used_edges is not None:
                 mask_used_edges = mask_used_edges[self.used_offsets]
 
-        if foreground_mask is not None:
-            mask_used_edges = self.from_foreground_mask_to_edge_mask(foreground_mask, offsets, mask_used_edges=mask_used_edges)
-
         image_shape = affinities.shape[1:]
 
         #affinities = affinities - np.mean(affinities, axis=(1,2,3))[:,np.newaxis,np.newaxis, np.newaxis]
@@ -208,19 +205,17 @@ class GaspFromAffinities(object):
         # Build graph:
         if self.verbose:
             print("Building graph...")
-        graph, is_local_edge, edge_sizes = \
+        graph, projected_node_ids_to_pixels, edge_weights, is_local_edge, edge_sizes = \
             build_pixel_long_range_grid_graph_from_offsets(
                 image_shape,
                 offsets,
+                affinities,
                 offsets_probabilities=self.offsets_probabilities,
                 mask_used_edges=mask_used_edges,
                 offset_weights=self.offsets_weights,
+                foreground_mask=foreground_mask,
                 set_only_direct_neigh_as_mergeable=self.set_only_direct_neigh_as_mergeable
             )
-
-        edge_weights = graph.edgeValues(np.rollaxis(affinities, 0, 4))
-        # counts = np.unique(edge_weights, return_counts=True)[1]
-        # print("Max count: ", counts.max())
 
         # Compute log costs:
         log_costs = probs_to_costs(1 - edge_weights, beta=self.beta_bias)
@@ -251,17 +246,13 @@ class GaspFromAffinities(object):
             exported_data = {}
             nodeSeg, runtime = outputs
 
-        # TODO: apply foreground_mask again
-        segmentation = nodeSeg.reshape(image_shape)
-
-        # FIXME: this remap label 0, which could be a problem in some cases...
-        # if foreground_mask is not None:
-        #     zero_mask = segmentation == 0
-        #     segmentation[foreground_mask == 0] = 0
-        #     if np.any(zero_mask):
-        #         max_label = segmentation.max()
-        #         warnings.warn("Zero segment remapped to {} in final segmentation".format(max_label + 1))
-        #         segmentation[zero_mask] = max_label + 1
+        segmentation = ntools.mapFeaturesToLabelArray(
+            projected_node_ids_to_pixels,
+            np.expand_dims(nodeSeg, axis=-1),
+            nb_threads=self.n_threads,
+            fill_value=-1.,
+            ignore_label=-1,
+        )[..., 0].astype(np.int64)
 
 
         if self.return_extra_outputs:
@@ -282,6 +273,7 @@ class GaspFromAffinities(object):
             if export_agglomeration_data:
                 warnings.warn("In order to export agglomeration data, also set the `return_extra_outputs` to True")
             return segmentation, runtime
+
 
     def run_GASP_from_superpixels(self, affinities, superpixel_segmentation, foreground_mask=None,
                                   mask_used_edges=None, affinities_weights=None):
@@ -390,16 +382,6 @@ class GaspFromAffinities(object):
         # Find affinities "on cut":
         affs_not_on_cut, _ = compute_affinities(pixel_segm.astype('uint64'), offsets.tolist(), False, 0)
         return log_affinities[np.logical_and(affs_not_on_cut == 0, edge_mask)].sum()
-
-    def from_foreground_mask_to_edge_mask(self, foreground_mask, offsets, mask_used_edges=None):
-        _, valid_edges = compute_affinities(foreground_mask.astype('uint64'), offsets.tolist(), True, 0)
-
-        if mask_used_edges is not None:
-            return np.logical_and(valid_edges, mask_used_edges)
-        else:
-            return valid_edges.astype('bool')
-
-        # return (edge_weights * edge_labels).sum()
 
     def get_frustration(self, graph, node_segm, edge_weights):
         edge_labels = graph.nodeLabelsToEdgeLabels(node_segm)

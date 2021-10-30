@@ -1,11 +1,16 @@
 import time
 import nifty
+import vigra
 import numpy as np
 from nifty import graph as ngraph
 from nifty.graph import rag as nrag
 import warnings
 from .various import check_offsets, find_indices_direct_neighbors_in_offsets
 
+from affogato.affinities import compute_affinities
+
+from elf.segmentation.features import compute_grid_graph_affinity_features
+import numpy.ma as ma
 
 def get_rag(segmentation, nb_threads):
     """
@@ -100,41 +105,99 @@ def build_lifted_graph_from_rag(rag,
         return final_graph, is_local_edge
 
 
+def edge_mask_from_offsets_prob(shape, offsets_probabilities, edge_mask=None):
+    shape = tuple(shape) if not isinstance(shape, tuple) else shape
+
+    offsets_probabilities = np.require(offsets_probabilities, dtype='float32')
+    nb_offsets = offsets_probabilities.shape[0]
+    edge_mask = np.ones((nb_offsets,)+ shape, dtype='bool') if edge_mask is None else edge_mask
+    assert (offsets_probabilities.min() >= 0.0) and (offsets_probabilities.max() <= 1.0)
+
+    # Randomly sample some edges to add to the graph:
+    edge_mask = []
+    for off_prob in offsets_probabilities:
+        edge_mask.append(np.random.random(shape) <= off_prob)
+    edge_mask = np.logical_and(np.stack(edge_mask, axis=-1), edge_mask)
+
+    return edge_mask
+
+def from_foreground_mask_to_edge_mask(foreground_mask, offsets, mask_used_edges=None):
+    _, valid_edges = compute_affinities(foreground_mask.astype('uint64'), offsets.tolist(), True, 0)
+
+    if mask_used_edges is not None:
+        return np.logical_and(valid_edges, mask_used_edges)
+    else:
+        return valid_edges.astype('bool')
+
 def build_pixel_long_range_grid_graph_from_offsets(image_shape,
                                                    offsets,
+                                                   affinities,
                                                    offsets_probabilities=None,
                                                    mask_used_edges=None,
                                                    offset_weights=None,
-                                                   set_only_direct_neigh_as_mergeable=True):
+                                                   set_only_direct_neigh_as_mergeable=True,
+                                                   foreground_mask=None):
     """
     Parameters
     ----------
     offset_weights: Defines the size of each edge in the graph, depending on the associated offset.
-
-
     """
+    # TODO: add support for foreground mask (masked nodes are removed from final undirected graph
+
     image_shape = tuple(image_shape) if not isinstance(image_shape, tuple) else image_shape
     offsets = check_offsets(offsets)
 
-    graph = ngraph.undirectedLongRangeGridGraph(image_shape, offsets,
-                                                offsets_probabilities=offsets_probabilities,
-                                                edge_mask=mask_used_edges)
+    if foreground_mask is not None:
+        # Mask edges connected to background:
+        mask_used_edges = from_foreground_mask_to_edge_mask(foreground_mask, offsets, mask_used_edges=mask_used_edges)
+
+    # Create temporary grid graph:
+    grid_graph = ngraph.undirectedGridGraph(image_shape)
+
+    # Compute edge mask from offset probs:
+    if offsets_probabilities is not None:
+        if mask_used_edges is not None:
+            warnings.warn("!!! Warning: both edge mask and offsets probabilities were used!!!")
+        mask_used_edges = edge_mask_from_offsets_prob(image_shape, offsets_probabilities, mask_used_edges)
+
+    uv_ids, edge_weights = compute_grid_graph_affinity_features(grid_graph, affinities,
+                                         offsets=offsets, mask=mask_used_edges)
+
+    nb_nodes = grid_graph.numberOfNodes
+    projected_node_ids_to_pixels = grid_graph.projectNodeIdsToPixels()
+
+    if foreground_mask is not None:
+        # Mask background nodes and relabel node ids continuous before to create final graph:
+        projected_node_ids_to_pixels += 1
+        projected_node_ids_to_pixels[np.invert(foreground_mask)] = 0
+        projected_node_ids_to_pixels, new_max_label, mapping = vigra.analysis.relabelConsecutive(projected_node_ids_to_pixels,
+                                                                                  keep_zeros=True)
+        # The following assumes that previously computed edges has alreadyu been masked
+        uv_ids += 1
+        vigra.analysis.applyMapping(uv_ids, mapping, out=uv_ids)
+        nb_nodes = new_max_label+1
+
+    # Create new undirected graph with all edges (including long-range ones):
+    graph = ngraph.UndirectedGraph(nb_nodes)
+    graph.insertEdges(uv_ids)
 
     # By default every edge is local/mergable:
     is_local_edge = np.ones(graph.numberOfEdges, dtype='bool')
-
-    edge_offset_index = graph.edgeOffsetIndex()
-
     if set_only_direct_neigh_as_mergeable:
-        # Assume that the number of local offsets are equal to the dimension of the image:
-        is_local_edge[:] = False
-        _, indices_local_offsets = find_indices_direct_neighbors_in_offsets(offsets)
-        for local_offset in indices_local_offsets:
-            is_local_edge[edge_offset_index == local_offset] = True
+        # Get edge ids of local edges:
+        # Warning: do not use grid_graph.projectEdgeIdsToPixels because edges ids could be inconsistent with those created
+        # with compute_grid_graph_affinity_features assuming the given offsets!
+        is_dir_neighbor, _ = find_indices_direct_neighbors_in_offsets(offsets)
+        projected_local_edge_ids = grid_graph.projectEdgeIdsToPixelsWithOffsets(np.array(offsets))[is_dir_neighbor]
+        is_local_edge = np.isin(np.arange(edge_weights.shape[0]),
+                                projected_local_edge_ids[projected_local_edge_ids != -1].flatten(),
+                                assume_unique=True)
+
 
     edge_sizes = np.ones(graph.numberOfEdges, dtype='float32')
-    if offset_weights is not None:
-        offset_weights = np.require(offset_weights, dtype='float32')
-        edge_sizes = offset_weights[edge_offset_index]
+    # TODO: use np.unique or similar on edge indices, but only if offset_weights are given (expensive)
+    # Get local edges:
+    # grid_graph.projectEdgeIdsToPixels()
+    assert offset_weights is None, "Not implemented yet"
 
-    return graph, is_local_edge, edge_sizes
+    return graph, projected_node_ids_to_pixels, edge_weights, is_local_edge, edge_sizes

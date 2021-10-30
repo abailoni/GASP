@@ -53,18 +53,11 @@ class WatershedFromAffinities(object):
         segmentation, max_label = watershedsNew(hmap_z_slice)
         return segmentation, max_label
 
-    def __call__(self, affinities, *args):
+    def __call__(self, affinities, foreground_mask=None):
         """
         Here we expect real affinities (1: merge, 0: split).
         If the opposite is passed, set option `invert_affinities == True`
         """
-        foreground_mask = None
-        # TODO: update with only one optional arg...
-        if len(args) != 0:
-            assert len(args) == 1
-            foreground_mask = args[0]
-
-
         assert affinities.shape[0] == len(self.offsets)
         assert affinities.ndim == 4
 
