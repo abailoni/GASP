@@ -7,6 +7,7 @@ except ImportError:
     aff_segm = None
 
 import nifty.graph.agglo as nifty_agglo
+from nifty.graph import components
 
 def run_GASP(
         graph,
@@ -112,11 +113,9 @@ def run_GASP(
                                              signed_edge_weights[np.logical_not(mutex_edges)],
                                              -signed_edge_weights[mutex_edges])
         else:
-            node_labels = aff_segm.compute_single_linkage_clustering(nb_nodes,
-                                                        uv_ids[np.logical_not(mutex_edges)],
-                                                        uv_ids[mutex_edges],
-                                                        signed_edge_weights[np.logical_not(mutex_edges)],
-                                                        -signed_edge_weights[mutex_edges])
+            graph_components = components(graph)
+            graph_components.buildFromEdgeLabels(mutex_edges)
+            node_labels = graph_components.componentLabels()
         runtime = time.time() - tick
     else:
         cluster_policy = nifty_agglo.get_GASP_policy(graph, signed_edge_weights,

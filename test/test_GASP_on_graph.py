@@ -8,6 +8,8 @@ import nifty
 import nifty.graph
 import nifty.graph.agglo
 nagglo = nifty.graph.agglo
+from nifty.graph import components
+import numpy as np
 
 
 class TestGASP(unittest.TestCase):
@@ -46,6 +48,14 @@ class TestGASP(unittest.TestCase):
         seg = agglomerativeClustering.result()
         self.assertTrue(seg[0] != seg[1] and seg[0] == seg[2] and seg[0] == seg[3])
 
+    def test_gasp_single_linkage(self):
+        import nifty.graph as ngraph
+        rag = ngraph.undirectedGridGraph((2, 2))
+        connections = np.array([0, 0, 1, 1])
+        graph_components = components(rag)
+        graph_components.buildFromEdgeLabels(connections)
+        node_labels = graph_components.componentLabels()
+        self.assertTrue(node_labels[0] == node_labels[1] and node_labels[2] == node_labels[3] and node_labels[0] != node_labels[3])
 
     def test_gasp_sum(self):
         clusterPolicy = nagglo.get_GASP_policy(

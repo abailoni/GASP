@@ -30,7 +30,7 @@ class GaspFromAffinities(object):
                  offsets_weights=None,
                  return_extra_outputs=False,
                  set_only_direct_neigh_as_mergeable=True,
-                 ignore_edge_sizes=False, # TODO: delete. It should never be True for superpixels...
+                 ignore_edge_sizes=False,
                  ):
         """
         Run the Generalized Algorithm for Signed Graph Agglomerative Partitioning from affinities computed from
@@ -125,7 +125,8 @@ class GaspFromAffinities(object):
         self.superpixel_generator = superpixel_generator
         self.return_extra_outputs = return_extra_outputs
         self.set_only_direct_neigh_as_mergeable = set_only_direct_neigh_as_mergeable
-        self.ignore_edge_sizes = ignore_edge_sizes
+
+        assert not ignore_edge_sizes, "This option is deprecated"
 
     def __call__(self, affinities, *args_superpixel_gen,
                  mask_used_edges=None, affinities_weights=None, foreground_mask=None):
@@ -180,6 +181,8 @@ class GaspFromAffinities(object):
         # Check if I should use efficient implementation of the MWS:
         run_kwargs = self.run_GASP_kwargs
         export_agglomeration_data = run_kwargs.get("export_agglomeration_data", False)
+        # TODO: add implementation of single-linkage from pixels using affogato.segmentation.connected_components
+        #       At the moment the affogato "connected_components" test is failing, so it may require more debugging first.
         if run_kwargs.get("use_efficient_implementations", True) and run_kwargs.get("linkage_criteria") in ['mutex_watershed', 'abs_max']:
             assert compute_mws_segmentation_from_affinities is not None, "Efficient MWS implementation not available. Update the affogato repository "
             assert not export_agglomeration_data, "Exporting extra agglomeration data is not possible when using " \
@@ -225,9 +228,6 @@ class GaspFromAffinities(object):
 
             #signed_weights = edge_weights + 0.3
             signed_weights = edge_weights - self.beta_bias
-
-        if self.ignore_edge_sizes:
-            edge_sizes = np.ones_like(edge_sizes)
 
         # Run GASP:
         if self.verbose:
@@ -299,8 +299,6 @@ class GaspFromAffinities(object):
         edge_sizes = featurer_outputs['edge_sizes']
         is_local_edge = featurer_outputs['is_local_edge']
 
-        if self.ignore_edge_sizes:
-            edge_sizes = np.ones_like(edge_sizes)
 
         # Optionally, use logarithmic weights and apply bias parameter
         log_costs = probs_to_costs(1 - edge_indicators, beta=self.beta_bias)

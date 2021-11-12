@@ -4,6 +4,9 @@ import numpy as np
 
 from GASP.segmentation import GaspFromAffinities, WatershedOnDistanceTransformFromAffinities
 
+# TODO: check consistency between GASP MWS and affogato implementation
+# TODO: check consistency between graph and affinity version of GASP (use pixels as superpixels)
+
 class run_GASP_from_pixel_affinities(unittest.TestCase):
     def test_GASP_from_random_affinities_from_superpixels(self):
         IMAGE_SHAPE = (10, 40, 40)
