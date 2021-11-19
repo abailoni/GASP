@@ -2,6 +2,7 @@ import time
 
 import numpy as np
 from nifty.graph import rag as nrag
+from nifty.graph.long_range_adjacency import accumulate_affinities_mean_and_length
 
 from ..utils.graph import build_lifted_graph_from_rag, get_rag
 from ..utils.various import check_offsets, find_indices_direct_neighbors_in_offsets
@@ -121,10 +122,10 @@ class AccumulatorLongRangeAffs(object):
             print("Computing edge_features...")
             tick = time.time()
 
-        # FIXME: here offsets_probs and offsets_weights are not consistent... (and make it support edge_mask)
-        #   very likelt I need to create a mask from probs if present and then use it for both (to keep it consistent)
+        # TODO: here offsets_probs and offsets_weights are not consistent... (and make it support edge_mask)
+        #   very likely I need to create a mask from probs if present and then use it for both (to keep it consistent)
         # Compute edge sizes and accumulate average:
-        edge_indicators, edge_sizes = nrag.accumulate_affinities_mean_and_length(
+        edge_indicators, edge_sizes = accumulate_affinities_mean_and_length(
             affinities,
             offsets,
             segmentation if not has_background_label else extra_dict['updated_segmentation'],
@@ -179,7 +180,7 @@ class AccumulatorLongRangeAffs(object):
 #     else:
 #         offsets_weights = np.ones(affinities.shape[-1])
 #
-#     mean, count = nrag.accumulate_affinities_mean_and_length(random_affinities, offsets, random_labels,
+#     mean, count = accumulate_affinities_mean_and_length(random_affinities, offsets, random_labels,
 #                                                              offset_weights=[2, 4, 1, 5])
 #
 #     accumulated_feat, counts, max_affinities = nrag.accumulateAffinitiesMeanAndLength(graph,
