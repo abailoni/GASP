@@ -2,7 +2,7 @@ import time
 
 import numpy as np
 from nifty.graph import rag as nrag
-from nifty.graph.long_range_adjacency import accumulate_affinities_mean_and_length
+from nifty.graph import accumulate_affinities_mean_and_length
 
 from ..utils.graph import build_lifted_graph_from_rag, get_rag
 from ..utils.various import check_offsets, find_indices_direct_neighbors_in_offsets
