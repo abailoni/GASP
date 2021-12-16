@@ -1,6 +1,9 @@
 
 # GASP
-[![Build Status](https://travis-ci.com/abailoni/GASP.svg?branch=master)](https://travis-ci.com/abailoni/GASP)
+
+[comment]: <> ([![Build Status]&#40;https://travis-ci.com/abailoni/GASP.svg?branch=master&#41;]&#40;https://travis-ci.com/abailoni/GASP&#41;)
+
+[comment]: <> ([![Build Status]&#40;https://github.com/constantinpape/nifty/workflows/build/badge.svg&#41;]&#40;https://github.com/constantinpape/nifty/actions&#41;)
 
 Generalized Algorithm for Signed graph Partitioning
 
@@ -9,7 +12,7 @@ Generalized Algorithm for Signed graph Partitioning
 
 ## Installation
 
-- On linux, the package can be easily installed via conda: 
+- On Linux and Mac, the package can be easily installed via conda: 
     - `conda create -n GASP -c conda-forge -c abailoni gasp`
     -  Activate your new environment: `conda activate GASP`
 

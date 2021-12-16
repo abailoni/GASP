@@ -1,6 +1,6 @@
 package:
   name: gasp
-  version: 1.0.6
+  version: 1.0.5
 #  version: {{ GIT_DESCRIBE_TAG }}
 
 source:
@@ -17,9 +17,9 @@ requirements:
 
   run:
     - python {{ python }}
-    - nifty # =1.0.9
+    - nifty >=1.2
     - vigra
-    - affogato # =0.2.2
+    - affogato >=0.3.1
 
 test:
   requires:
