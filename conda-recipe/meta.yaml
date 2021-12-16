@@ -1,6 +1,6 @@
 package:
   name: gasp
-  version: 1.0.5
+  version: 1.1.0
 #  version: {{ GIT_DESCRIBE_TAG }}
 
 source:
